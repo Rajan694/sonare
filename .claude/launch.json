@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sonare-desktop",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "sonare-frontend/other-screens", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}
