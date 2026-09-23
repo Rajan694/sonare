@@ -488,7 +488,7 @@ sonare:<uuid>             Sonare playlist
 - `Streams.audioStreams[]` is what you want; ignore `videoStreams`, `hls`, `dash` — progressive audio is enough for a music player.
 - Selection: prefer `codec` containing `opus` at the highest `bitrate ≤ target`, fall back to `mp4a` (Safari / iOS needs AAC).
 - URLs are **time-limited and IP-bound**. Return `expiresAt` and let the client re-request `/tracks/:id/stream` on 403.
-- Piped rewrites stream URLs to its proxy (`PROXY_PART`, `http://localhost:8081` in your `config.properties`). Either expose that proxy, or add `GET /stream/:token` in Express that pipes it through with `Range` support — the second option keeps the Piped instance entirely private, which is D2.
+- Piped rewrites stream URLs to its proxy (`PROXY_PART`, `http://localhost:8091` in your `config.properties`). Either expose that proxy, or add `GET /stream/:token` in Express that pipes it through with `Range` support — the second option keeps the Piped instance entirely private, which is D2.
 - `contentLength` is on `PipedStream`, so you can answer `Content-Length` / `206` correctly.
 
 ### 8.3 Local track fingerprint
@@ -530,8 +530,8 @@ Redis or `lru-cache` — either is fine at this stage. Cache *before* normalisat
 ### 8.6 Keys & config
 
 ```
-PIPED_API_URL=http://localhost:8080
-PIPED_PROXY_URL=http://localhost:8081
+PIPED_API_URL=http://localhost:8090
+PIPED_PROXY_URL=http://localhost:8091
 GENIUS_CLIENT_ACCESS_TOKEN=...
 LRCLIB_BASE=https://lrclib.net
 LRCLIB_USER_AGENT=Sonare/1.0 (+https://github.com/<you>/sonare)

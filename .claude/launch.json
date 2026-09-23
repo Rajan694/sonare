@@ -5,7 +5,7 @@
       "name": "sonare-desktop",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "sonare-frontend/other-screens", "run", "dev"],
-      "port": 5173
+      "port": 5183
     }
   ]
 }
