@@ -26,7 +26,8 @@ usage() {
     echo ""
     echo "  --fe=<target>    FE to build: web (default), mobile, or linux."
     echo ""
-    echo "Ports: piped 8090, proxy 8091, backend 3010 (see .env), vite 5183."
+    echo "Ports: piped 8090, proxy 8091, backend 3010 (see .env), vite 5183 (web) / 5184 (linux)."
+    echo "The web and linux frontends use different ports, so both can run at once."
     echo ""
     echo "Closing this terminal (or Ctrl+C) stops everything it started: the"
     echo "Piped docker stack and the backend/frontend dev servers."
@@ -190,7 +191,11 @@ case "$TARGET" in
         echo "Started:"
         echo "  piped     http://127.0.0.1:8090   (docker, this terminal)"
         echo "  backend   see the sonare-backend terminal"
-        echo "  frontend  http://localhost:5183   (see the sonare-frontend terminal)"
+        case "$FE" in
+            web)   echo "  frontend  http://localhost:5183   (see the sonare-frontend terminal)" ;;
+            linux) echo "  frontend  http://localhost:5184   (the Sonare window; see the sonare-frontend terminal)" ;;
+            *)     echo "  frontend  $FE   (see the sonare-frontend terminal)" ;;
+        esac
         echo ""
         echo "Press Ctrl+C, or close this terminal, to stop everything (piped, backend, frontend)."
         sleep infinity
