@@ -133,8 +133,7 @@ trap cleanup EXIT INT TERM HUP
 
 start_piped() {
     # Docker, and it detaches on its own, so run it inline and wait - the backend
-    # needs it up before it is worth starting.
-    echo "=== Starting Piped (docker) ==="
+    # needs it up before it is worth starting. runPiped.sh prints its own header.
     ( cd "$SCRIPT_DIR/sonare-piped-backend" && ./runPiped.sh up )
 }
 
@@ -156,7 +155,7 @@ fi
 case "$TARGET" in
     piped)
         STARTED_PIPED=1
-        start_piped
+        start_piped || exit 1
         echo ""
         echo "Piped is running at http://127.0.0.1:8090."
         echo "Press Ctrl+C, or close this terminal, to stop it."
@@ -180,7 +179,11 @@ case "$TARGET" in
         ;;
     all)
         STARTED_PIPED=1
-        start_piped || echo "Piped did not come up - starting the rest anyway."
+        PIPED_UP=1
+        if ! start_piped; then
+            PIPED_UP=0
+            echo "Piped did not come up - starting the rest anyway."
+        fi
         STARTED_BE=1
         open_terminal "sonare-backend" "$SCRIPT_DIR/sonare-backend" "./runBE.sh dev"
         # Give the API a moment to bind so the frontend's first calls do not fail.
@@ -189,7 +192,11 @@ case "$TARGET" in
         open_terminal "sonare-frontend" "$SCRIPT_DIR/sonare-frontend" "./runFE.sh $FE"
         echo ""
         echo "Started:"
-        echo "  piped     http://127.0.0.1:8090   (docker, this terminal)"
+        if [ "$PIPED_UP" = "1" ]; then
+            echo "  piped     http://127.0.0.1:8090   (docker, this terminal)"
+        else
+            echo "  piped     NOT RUNNING - trending, search and playback will fail (see the errors above)"
+        fi
         echo "  backend   see the sonare-backend terminal"
         case "$FE" in
             web)   echo "  frontend  http://localhost:5183   (see the sonare-frontend terminal)" ;;

@@ -347,6 +347,13 @@ Base: `/api/v1`. JSON. Bearer auth (Sonare's own JWT) on everything under `/me`.
 | GET | `/playlists/:id` | — | `/playlists/:id` |
 | GET | `/playlists/:id/tracks` | `cursor` | `/nextpage/playlists/:id` |
 
+When Piped can't be reached (connection refused, DNS failure), these routes and
+`/me/recently-played` / `/me/most-played` answer `502 { error: { code: 'UPSTREAM_UNAVAILABLE' } }`;
+any other Piped failure is `502 UPSTREAM_ERROR`. `/trending` errors only when it has nothing to
+return, i.e. both Piped's trending feed and its search fallback failed. Favourites, library and
+playlist tracks still come back as placeholder rows, because mobile reads heart state from
+`/me/favourites/tracks` once, at sign-in.
+
 ### 6.3 Playback
 
 | Method | Path | Params | Notes |
