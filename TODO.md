@@ -3,7 +3,10 @@
 # MY FINDINGS
 
 - [ ] I have to add download feature tell me what is the possible ways and what are your suggestions(i am going to download only audio)(preferred download quality will be saved through settings screen, also the preferred download location). I will prefer if this current setup supports download then use it or use ytdlp for it. We will have downloads section with pause, resume, delete(will try to delete from folder it downloaded(if got error or file have moved to other place then only delete from downloaded list) options
-- [ ] Add admin feature page so that editing configurations can be done(for example, not sure about it, includes stream partners, the commit hash i am referring too), also add analytics and error logs. for this in the web only add a /admin route that will ask a username and password when access(it will be openroute but nobody will know it. make a flyway to add username:rajanadmin and password:sonare694(obviousely it will be stored in db hashed)) and when logged in add a section to change password.Add a table in db named system_configuration(it will store the system wide configurations)
+- [x] Add admin feature page so that editing configurations can be done(for example, not sure about it, includes stream partners, the commit hash i am referring too), also add analytics and error logs. for this in the web only add a /admin route that will ask a username and password when access(it will be openroute but nobody will know it. make a flyway to add username:rajanadmin and password:sonare694(obviousely it will be stored in db hashed)) and when logged in add a section to change password.Add a table in db named system_configuration(it will store the system wide configurations)
+      Done 2026-09-26: `/admin` on the web build (Overview, API, Errors, Configuration, Account).
+      Editable: Piped API URL (live), proxy URL and NewPipeExtractor commit (applied by
+      `sonare-piped-backend/runPiped.sh`). See the Admin section of `sonare-backend/README.md`.
 - [ ] Add a product logo in the web favicon, mobile app icon and linux app icon. i have added icons file in system-design, take whats needed and put it in respected UI's assets folder.
 - [ ] While playing in online mode, song is getting cutted/lagged(i guess the stream size is not enough)
 
