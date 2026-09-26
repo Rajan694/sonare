@@ -1,5 +1,12 @@
 # TODO
 
+# MY FINDINGS
+
+- [ ] I have to add download feature tell me what is the possible ways and what are your suggestions(i am going to download only audio)(preferred download quality will be saved through settings screen, also the preferred download location). I will prefer if this current setup supports download then use it or use ytdlp for it. We will have downloads section with pause, resume, delete(will try to delete from folder it downloaded(if got error or file have moved to other place then only delete from downloaded list) options
+- [ ] Add admin feature page so that editing configurations can be done(for example, not sure about it, includes stream partners, the commit hash i am referring too), also add analytics and error logs. for this in the web only add a /admin route that will ask a username and password when access(it will be openroute but nobody will know it. make a flyway to add username:rajanadmin and password:sonare694(obviousely it will be stored in db hashed)) and when logged in add a section to change password.Add a table in db named system_configuration(it will store the system wide configurations)
+- [ ] Add a product logo in the web favicon, mobile app icon and linux app icon. i have added icons file in system-design, take whats needed and put it in respected UI's assets folder.
+- [ ] While playing in online mode, song is getting cutted/lagged(i guess the stream size is not enough)
+
 ## Now
 
 - [ ] Make the app runnable end to end with all UI working properly (desktop + mobile)
@@ -36,7 +43,7 @@
 - [x] ~~Track art at size=640 404s when `maxresdefault.jpg` is missing~~ The backend now probes
       maxresdefault → hq720 → mqdefault once per video (`largestThumb` in `app.ts`).
 - [ ] **Neutralino 6.9.0 aborts on rejected WebSocket handshakes** (`websocketpp ... invalid
-      state`). Only hit when a second client attaches without a connect token (testing);
+state`). Only hit when a second client attaches without a connect token (testing);
       worth rechecking on a newer Neutralino.
 - [ ] Linux window opens with the Web Inspector docked (`enableInspector: true`) - fine for
       dev, make sure release builds turn it off.
@@ -55,7 +62,7 @@ Parked until the app runs cleanly. Rajan has ideas for fixing these.
 - [ ] **Bot detection (PoToken / BotGuard via `bg-helper`).** Google changes this often;
       when it breaks, streams fail or return "Sign in to confirm you're not a bot".
       Worse from datacenter IPs than home connections.
-      *Already seen 2026-09-24:* some `c=VISIONOS` stream URLs serve only the first ~1 MB
+      _Already seen 2026-09-24:_ some `c=VISIONOS` stream URLs serve only the first ~1 MB
       and 403 the rest (no `pot=` token on that client). The backend relay now swaps in a
       fresh URL on 403, but that's a workaround, not a fix.
 - [ ] **Artist pages depend on search.** The extractor returns nothing for auto-generated
