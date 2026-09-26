@@ -35,7 +35,7 @@ Three UI targets exist today:
 | **Offline mode toggle** | ❌ hidden | ✅ | ✅ |
 | `Folders` screen | ❌ hidden | ✅ | ✅ |
 | `ModeSwitch` screen | ❌ hidden | ✅ | ✅ |
-| Download-for-offline | ❌ | ✅ | ✅ |
+| Download-for-offline | ⚠️ saves files (see §8.7), no offline playback | ✅ | ✅ Android |
 | Equalizer | ⚠️ Web Audio `BiquadFilter` chain only | ✅ native | ✅ native |
 | Output device / Cast | ❌ | ⚠️ limited | ✅ |
 | Waveform peaks | ✅ (server-computed) | ✅ | ✅ |
@@ -305,7 +305,7 @@ Response always carries `provider` and `synced` so the UI can render the badge h
 | Local folder scan, tag read, storage stats | **device**, not HTTP |
 | Equalizer, gapless, normalization, playback speed | **device** |
 | Output device / Cast | **device** |
-| Downloads for offline | **device** (URL from `/tracks/:id/stream`) |
+| Downloads for offline | **device** (URL from `/tracks/:id/stream`, bytes via `/stream/:token`; §8.7) |
 | Sync of local state ↔ server | Express, §6.7 |
 
 ### D. Piped endpoints Sonare will never call
@@ -358,7 +358,7 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 
 | Method | Path | Params | Notes |
 |---|---|---|---|
-| GET | `/tracks/:id/stream` | `quality=auto\|low\|high`, `format=opus\|m4a` | → `{ url, mimeType, codec, bitrateKbps, contentLength, expiresAt }` |
+| GET | `/tracks/:id/stream` | `quality=auto\|low\|high`, `format=opus\|m4a` | → `{ url, mimeType, codec, bitrateKbps, contentLength, expiresAt, muxed, itag }` |
 | GET | `/tracks/:id/peaks` | `bars=150` | → `{ peaks: number[] }` |
 | GET | `/tracks/:id/artwork` | `size=64\|140\|300\|640` | 302 or proxied bytes |
 | GET | `/stream/:token` | — | optional: Express proxies the audio itself, Range-aware (§8.2) |
@@ -435,7 +435,7 @@ Web ships a stub where `localLibrary` throws `UnsupportedOnWeb` and `CAPS.localL
 | POST | `/me/sync` | `{ since, plays: [{ trackRef, at, ms }], favourites: [...], playlists: [...] }` → server merge result |
 | PUT | `/me/player-state` | `{ trackRef, positionMs, queue: TrackRef[], index, shuffle, repeat }` |
 | GET | `/me/player-state` | resume on another device |
-| GET | `/me/settings` · PUT | EQ preset, gapless, normalization, download quality, stay-offline flag |
+| GET | `/me/settings` · PUT | `eqPreset`, `gapless`, `normalization`, `streamQuality`, `downloadQuality` (`low\|normal\|high`), `downloadFormat` (`opus\|m4a`), `stayOffline`. PUT ignores unknown values and keeps fields it isn't sent. |
 
 `TrackRef` is `{ kind: 'server', id }` or `{ kind: 'local', fingerprint }` — see §8.3.
 
@@ -497,6 +497,35 @@ sonare:<uuid>             Sonare playlist
 - URLs are **time-limited and IP-bound**. Return `expiresAt` and let the client re-request `/tracks/:id/stream` on 403.
 - Piped rewrites stream URLs to its proxy (`PROXY_PART`, `http://localhost:8091` in your `config.properties`). Either expose that proxy, or add `GET /stream/:token` in Express that pipes it through with `Range` support — the second option keeps the Piped instance entirely private, which is D2.
 - `contentLength` is on `PipedStream`, so you can answer `Content-Length` / `206` correctly.
+
+### 8.7 Downloads
+
+Downloads use the same two endpoints as playback; there is no separate download API and no
+yt-dlp. The file is saved exactly as YouTube serves it — Opus in WebM (`.webm`) or AAC in
+M4A (`.m4a`) — never re-encoded. YouTube has no lossless audio, so "high" means the best
+stream on offer (≈160 kbps Opus / 128 kbps AAC).
+
+1. `GET /tracks/:id/stream?quality=&format=` from the account's `downloadQuality` / `downloadFormat`.
+   A `muxed: true` answer (video fallback, ~13× the bytes) is refused rather than saved.
+2. `GET /stream/:token` in 2 MB `Range` chunks, appended to a part file. Pause aborts the
+   request; resume asks for the bytes after the part's length. CORS exposes `Content-Range`
+   so browser clients can read the total size.
+3. 403 / 404 / 410 / 502 means the token expired or the YouTube url died: fetch a fresh
+   stream url and continue. If its `itag` or `contentLength` differ from what the part was
+   built from, start over instead of splicing two files.
+4. Move the part into place under a free name.
+
+Where files go, per platform:
+
+| | default location | changeable | Delete |
+|---|---|---|---|
+| desktop | `~/Music/Sonare` | any folder (Settings) | deletes the file; if it moved, only the list entry |
+| web, Chromium | browser Downloads | a picked folder (File System Access API) | picked folder: as desktop · browser Downloads: list only |
+| web, others | browser Downloads (bytes collect in IndexedDB until complete) | no | list only |
+| Android | `Music/Sonare` via MediaStore | a picked folder (Storage Access Framework) | as desktop |
+
+The download location and the download list are per device; quality and format are account
+settings (`/me/settings`).
 
 ### 8.3 Local track fingerprint
 

@@ -2,7 +2,14 @@
 
 # MY FINDINGS
 
-- [ ] I have to add download feature tell me what is the possible ways and what are your suggestions(i am going to download only audio)(preferred download quality will be saved through settings screen, also the preferred download location). I will prefer if this current setup supports download then use it or use ytdlp for it. We will have downloads section with pause, resume, delete(will try to delete from folder it downloaded(if got error or file have moved to other place then only delete from downloaded list) options
+- [x] I have to add download feature tell me what is the possible ways and what are your suggestions(i am going to download only audio)(preferred download quality will be saved through settings screen, also the preferred download location). I will prefer if this current setup supports download then use it or use ytdlp for it. We will have downloads section with pause, resume, delete(will try to delete from folder it downloaded(if got error or file have moved to other place then only delete from downloaded list) options
+      Done 2026-09-26 with the existing stream relay (no yt-dlp): desktop, web and Android.
+      Settings > Downloads (quality, format, location) and a Downloads screen with pause /
+      resume / delete. How it works: `docs/api-contract.md` §8.7.
+      Follow-ups: Android downloads run while the app process lives (no foreground service /
+      WorkManager yet, so a long queue can stall if Android kills the app in the background -
+      it resumes on next launch); iOS has no download module; files carry no title/artist
+      tags (would need a server-side ffmpeg remux).
 - [x] Add admin feature page so that editing configurations can be done(for example, not sure about it, includes stream partners, the commit hash i am referring too), also add analytics and error logs. for this in the web only add a /admin route that will ask a username and password when access(it will be openroute but nobody will know it. make a flyway to add username:rajanadmin and password:sonare694(obviousely it will be stored in db hashed)) and when logged in add a section to change password.Add a table in db named system_configuration(it will store the system wide configurations)
       Done 2026-09-26: `/admin` on the web build (Overview, API, Errors, Configuration, Account).
       Editable: Piped API URL (live), proxy URL and NewPipeExtractor commit (applied by
@@ -30,7 +37,7 @@
   - API host is hardcoded to `10.0.2.2:3010` (emulator) in `mobile/src/data/config.ts`; a
     physical phone needs the machine's LAN IP, and release builds need HTTPS (cleartext is
     only allowed in debug).
-  - Offline mode has nothing to show yet: there are no downloads / local files on mobile.
+  - Offline mode shows downloaded songs only; there is no local-folder scan on mobile yet.
   - Settings rows other than Account (crossfade, folders, cache size) are still static.
   - Artist `monthlyListeners` is actually YouTube subscriber count.
 - [ ] **Accounts:** no password reset, email verification or login rate limiting yet; tokens
