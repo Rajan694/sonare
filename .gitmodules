@@ -1,0 +1,12 @@
+[submodule "sonare-backend"]
+	path = sonare-backend
+	url = https://github.com/Rajan694/sonare-backend.git
+	branch = main
+[submodule "sonare-frontend"]
+	path = sonare-frontend
+	url = https://github.com/Rajan694/sonare-frontend.git
+	branch = main
+[submodule "sonare-piped-backend"]
+	path = sonare-piped-backend
+	url = https://github.com/Rajan694/sonare-piped-backend.git
+	branch = main
