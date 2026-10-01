@@ -30,6 +30,7 @@
       Enough main-thread load that WebCodecs decoding on the page fell behind real time
       (why the decoder now runs in a worker). Splitting position out of the context would
       make long lists lighter on WebKitGTK.
+- [ ] IN mobile bounceback animation way too high.
 
 ## Now
 

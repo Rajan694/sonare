@@ -358,7 +358,7 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 
 | Method | Path | Params | Notes |
 |---|---|---|---|
-| GET | `/tracks/:id/stream` | `quality=auto\|low\|high`, `format=opus\|m4a` | → `{ url, mimeType, codec, bitrateKbps, contentLength, expiresAt, muxed, itag }` |
+| GET | `/tracks/:id/stream` | `quality=auto\|low\|normal\|high`, `format=opus\|m4a` | → `{ url, mimeType, codec, bitrateKbps, contentLength, expiresAt, muxed, itag }`. `contentLength` is 0 when unknown. `low` / `auto` / `high` are bitrate ceilings (64 kbps / 160 kbps / none); `normal` is the middle tier of the format (Opus ≈75 kbps; AAC has two tiers, so the 128 kbps one). An explicit `format` is honoured at any bitrate before the other format is considered. |
 | GET | `/tracks/:id/peaks` | `bars=150` | → `{ peaks: number[] }` |
 | GET | `/tracks/:id/artwork` | `size=64\|140\|300\|640` | 302 or proxied bytes |
 | GET | `/stream/:token` | — | optional: Express proxies the audio itself, Range-aware (§8.2) |
@@ -501,31 +501,47 @@ sonare:<uuid>             Sonare playlist
 ### 8.7 Downloads
 
 Downloads use the same two endpoints as playback; there is no separate download API and no
-yt-dlp. The file is saved exactly as YouTube serves it — Opus in WebM (`.webm`) or AAC in
-M4A (`.m4a`) — never re-encoded. YouTube has no lossless audio, so "high" means the best
-stream on offer (≈160 kbps Opus / 128 kbps AAC).
+yt-dlp. The file is saved exactly as YouTube serves it — Opus in WebM or AAC in M4A — never
+re-encoded. YouTube has no lossless audio, so "high" means the best stream on offer
+(≈150 kbps Opus / 128 kbps AAC). Opus is saved as `.webm` on desktop and web, and as `.mka`
+on Android: Android has no `audio/webm` type (MediaStore rejects it and scans `.webm` as
+video), and WebM is a subset of Matroska.
 
 1. `GET /tracks/:id/stream?quality=&format=` from the account's `downloadQuality` / `downloadFormat`.
    A `muxed: true` answer (video fallback, ~13× the bytes) is refused rather than saved.
+   `contentLength` 0 (or -1 from older backends) means unknown; the size then comes from
+   `Content-Range`, or a short last chunk.
 2. `GET /stream/:token` in 2 MB `Range` chunks, appended to a part file. Pause aborts the
    request; resume asks for the bytes after the part's length. CORS exposes `Content-Range`
-   so browser clients can read the total size.
+   so browser clients can read the total size. A range that starts past the end gets 416
+   with `Content-Range: bytes */<size>` (the relay works this out itself; Piped's proxy
+   answers such ranges with 400).
 3. 403 / 404 / 410 / 502 means the token expired or the YouTube url died: fetch a fresh
-   stream url and continue. If its `itag` or `contentLength` differ from what the part was
-   built from, start over instead of splicing two files.
+   stream url and continue. If its `itag` or a known `contentLength` differ from what the
+   part was built from, start over instead of splicing two files. Dropped connections are
+   retried with backoff (2, 4, 8… s).
 4. Move the part into place under a free name.
+
+Android keeps a foreground service (type `dataSync`, "Downloading N songs") running while
+anything is queued: since Android 15 a background app loses network access within seconds
+otherwise.
 
 Where files go, per platform:
 
 | | default location | changeable | Delete |
 |---|---|---|---|
 | desktop | `~/Music/Sonare` | any folder (Settings) | deletes the file; if it moved, only the list entry |
-| web, Chromium | browser Downloads | a picked folder (File System Access API) | picked folder: as desktop · browser Downloads: list only |
+| web, Chromium | asks for a folder on the first download; browser Downloads if declined | a picked folder (File System Access API) | picked folder: as desktop · browser Downloads: list only |
 | web, others | browser Downloads (bytes collect in IndexedDB until complete) | no | list only |
 | Android | `Music/Sonare` via MediaStore | a picked folder (Storage Access Framework) | as desktop |
 
+A page can't tell whether the browser really saved a file (Chrome asks before a site saves
+several in a row), so the web keeps a copy of each browser-saved download in IndexedDB until
+it's deleted from the list; the Downloads screen has "Save again" for it.
+
 The download location and the download list are per device; quality and format are account
-settings (`/me/settings`).
+settings (`/me/settings`). The apps send only the settings they changed, so a phone and a
+desktop don't overwrite each other's choices.
 
 ### 8.3 Local track fingerprint
 
