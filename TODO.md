@@ -2,20 +2,35 @@
 
 # MY FINDINGS
 
-- [x] I have to add download feature tell me what is the possible ways and what are your suggestions(i am going to download only audio)(preferred download quality will be saved through settings screen, also the preferred download location). I will prefer if this current setup supports download then use it or use ytdlp for it. We will have downloads section with pause, resume, delete(will try to delete from folder it downloaded(if got error or file have moved to other place then only delete from downloaded list) options
-      Done 2026-09-26 with the existing stream relay (no yt-dlp): desktop, web and Android.
-      Settings > Downloads (quality, format, location) and a Downloads screen with pause /
-      resume / delete. How it works: `docs/api-contract.md` §8.7.
-      Follow-ups: Android downloads run while the app process lives (no foreground service /
-      WorkManager yet, so a long queue can stall if Android kills the app in the background -
-      it resumes on next launch); iOS has no download module; files carry no title/artist
-      tags (would need a server-side ffmpeg remux).
-- [x] Add admin feature page so that editing configurations can be done(for example, not sure about it, includes stream partners, the commit hash i am referring too), also add analytics and error logs. for this in the web only add a /admin route that will ask a username and password when access(it will be openroute but nobody will know it. make a flyway to add username:rajanadmin and password:sonare694(obviousely it will be stored in db hashed)) and when logged in add a section to change password.Add a table in db named system_configuration(it will store the system wide configurations)
-      Done 2026-09-26: `/admin` on the web build (Overview, API, Errors, Configuration, Account).
-      Editable: Piped API URL (live), proxy URL and NewPipeExtractor commit (applied by
-      `sonare-piped-backend/runPiped.sh`). See the Admin section of `sonare-backend/README.md`.
-- [ ] Add a product logo in the web favicon, mobile app icon and linux app icon. i have added icons file in system-design, take whats needed and put it in respected UI's assets folder.
-- [ ] While playing in online mode, song is getting cutted/lagged(i guess the stream size is not enough)
+- [x] in favourites page section on removing a song, i have to refresh the page to see the change, it should be removed immediately
+      Done 2026-09-27: the row goes as soon as the heart is cleared; the list refetches after
+      any heart change.
+- [x] playlist section is not viewable in web on some screen, i have added the screenshot.
+      Done 2026-09-27: the sidebar's nav, library links and playlists scroll as one area.
+- [x] also what is this placeholders in Genres and in search screens(added screenshots).
+      They were the design's generated-artwork squares, floated into blank cards. Genres are
+      now full gradient cards (Library tab and Search).
+- [x] if nothing playing, hide the bottom player(add screenshot).
+- [x] make bottom player to take all the width available(right side have empty space).
+- [x] add download button in main player and bottom player too.
+      Done on desktop/web (bottom player + Now Playing) and mobile (Now Playing).
+- [x] in offline mode, songs are still cutting(like skipping some milliseconds), playback is not smooth.
+      Done 2026-09-27: files over 15 min / 60 MB (46 of the 279 in ~/Music) still went through
+      the <audio> element that drops audio on WebKitGTK. They now stream through Web Audio
+      (WebCodecs decoder in a worker, `streamPlayback.ts`); measured gap-free in the app.
+- [x] mobile screen is not same as the pdf inside the design-system(like setting icon on left of profile). do check with the pdf
+      Done 2026-09-27. Web at phone width had no top bar at all (no search field, settings or
+      profile): it now has the M-series headers. Mobile app: detail screens open inside
+      the tab (mini player + tab bar stay), header alignment, Library toolbar, Now Playing.
+- [ ] **Design gaps left on mobile** (features that don't exist yet, so no dead buttons were
+      added): Now Playing's "Playing from <album>" eyebrow, audio output / cast card, sleep
+      timer, and Settings rows for them.
+- [ ] **Desktop re-renders every row on each position tick.** `usePlayerStore()` is one
+      context whose value changes every 250 ms, so every SongRow re-renders while playing.
+      Enough main-thread load that WebCodecs decoding on the page fell behind real time
+      (why the decoder now runs in a worker). Splitting position out of the context would
+      make long lists lighter on WebKitGTK.
+- [ ] IN mobile bounceback animation way too high.
 
 ## Now
 
