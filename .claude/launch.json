@@ -16,6 +16,12 @@
       "name": "sonare-backend",
       "url": "http://127.0.0.1:3010",
       "port": 3010
+    },
+    {
+      "name": "sonare-backend-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "sonare-backend", "run", "dev"],
+      "port": 3010
     }
   ]
 }

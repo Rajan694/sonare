@@ -324,11 +324,19 @@ Base: `/api/v1`. JSON. Bearer auth (Sonare's own JWT) on everything under `/me`.
 
 | Method | Path | Body / params |
 |---|---|---|
-| POST | `/auth/register` | `{ email, password, displayName }` |
+| POST | `/auth/register` | `{ email, password (8–128), displayName }` → 201 `{ accessToken, refreshToken, user }`; emails a verify link |
 | POST | `/auth/login` | `{ email, password }` → `{ accessToken, refreshToken, user }` |
 | POST | `/auth/refresh` | `{ refreshToken }` |
 | POST | `/auth/logout` | — |
-| GET | `/me` | → `{ id, displayName, email, createdAt }` |
+| POST | `/auth/verify-email` | `{ token }` → `{ ok: true }`; 400 `INVALID_TOKEN` when used or expired (24 h) |
+| POST | `/auth/resend-verification` | Bearer → `{ ok: true }` or `{ ok: true, alreadyVerified: true }`; 3 per hour |
+| POST | `/auth/forgot-password` | `{ email }` → always `{ ok: true }`; emails a reset link if the account exists |
+| POST | `/auth/reset-password` | `{ token, password }` → `{ ok: true }`; signs out every device; 400 `INVALID_TOKEN` when used or expired (1 h) |
+| GET | `/me` | → `{ id, displayName, email, emailVerified, createdAt }` |
+
+`user` is `{ id, email, displayName, emailVerified, createdAt }`. Emails are lowercased. Rate-limited
+routes answer 429 `RATE_LIMITED` with `Retry-After`. Email links point at `APP_URL`
+(`/verify-email?token=…`, `/reset-password?token=…`), which the web app serves.
 
 ### 6.2 Catalog (upstream: Piped)
 
