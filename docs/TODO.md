@@ -77,11 +77,12 @@
 
 - [ ] Make the app runnable end to end with all UI working properly (desktop + mobile)
 
-- [ ] **Tests behind the 2026-10-03 changes.** 20 desktop tests still drive `window.prompt` /
-      `window.confirm`, the native `<select>`s and the old genre list, and fail against the themed
-      dialogs / dropdowns (layout, music, library-catalog, home-search, player-screens,
-      playlists, settings-downloads suites). Mobile tests weren't run. New code (dialogs,
-      Select, output picker, sleep timer, queue restore, lyrics script) has no tests yet.
+- [x] **Tests behind the 2026-10-03 changes.** Done 2026-10-03: the desktop suites drive the
+      themed dialogs and dropdowns (`desktop/test/helpers/dialogs.ts`), the mobile ones the sort
+      sheet, browse categories and new springs. Desktop 485, mobile 237, backend 363 tests pass.
+- [ ] New code with no tests of its own yet: the output pickers, the sleep timer, queue restore,
+      the lyrics script choice (backend and apps), derived library artists, Add to playlist from
+      the player, the Server address sheet.
 
 ### Found in the 2026-09-24 UI audit, not fixed yet
 
