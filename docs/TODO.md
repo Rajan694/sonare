@@ -80,9 +80,13 @@
 - [x] **Tests behind the 2026-10-03 changes.** Done 2026-10-03: the desktop suites drive the
       themed dialogs and dropdowns (`desktop/test/helpers/dialogs.ts`), the mobile ones the sort
       sheet, browse categories and new springs. Desktop 485, mobile 237, backend 363 tests pass.
-- [ ] New code with no tests of its own yet: the output pickers, the sleep timer, queue restore,
-      the lyrics script choice (backend and apps), derived library artists, Add to playlist from
-      the player, the Server address sheet.
+- [x] New code with no tests of its own yet: … Done 2026-10-03: backend 379, desktop 530 and mobile
+      272 tests, including the output pickers (setSinkId and pactl), sleep timer, queue restore,
+      lyrics script (backend and apps), derived library artists, Add to playlist from the player,
+      dialogs / dropdowns and the Server address sheet.
+- [ ] The Kotlin side of the output picker and sleep timer (`OutputDevices`, `PlaybackEngine`,
+      `SonarePlayerModule`) has no JVM tests: they need Android's AudioManager (Robolectric) and
+      haven't been built here.
 
 ### Found in the 2026-09-24 UI audit, not fixed yet
 
