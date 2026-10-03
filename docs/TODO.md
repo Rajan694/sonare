@@ -30,6 +30,17 @@
       (`store/playbackPosition.ts`, `usePlaybackPosition()`), the PlayerContext value is
       memoised, and only time/progress displays subscribe.
 - [ ] IN mobile bounceback animation way too high.
+- [ ] in search we have browse categories, it have ambient, electronica etc..., cant it have devotional, punjabi, bhojpuri, popular, top this year.
+- [ ] add a setting in settings section for preferred lyrics language, if avalilable that songs lyrics in that laguage then use it else use the native song one(like currently it is)
+- [ ] in search when we are searching a song, we show artists panel, but there we dont load thumbnails.
+- [ ] when add a playlist, native modal opens to enter a playlist name, which is not good, also playback stops, which is not correct.use a custom model related to our theme
+- [ ] on each songs, add a option to add it to playlist( in the bottom player).
+- [ ] in the artists panel we have option to show the artists(open question how we can follow artist, does liking a song, or adding it to a playlist showld add that songs artist in this panel or top played songs artist goes there). same question for genre(use the devotional, party, sad etc...) same question for album?
+- [ ] under library in songs panel, we have 3 optnos, recently added,all sources and downlaoed, on click of them, thedropdown is native, use a custom related to our theme. -[ ] in some screens after song title we have - line then source(server/local) then time, what is -(its for album(confirmed from pdf file in design systems(use it for artist name, also based on the image, we have to show plays counter(page no. 23 in pdf)))).
+- from library, remove the folders option as we have folder option shown on top right in songs screen(folder button is shown in album, artist, genres, why???)
+- [ ] in page 31 in the pdf, we have option to change the speaker(we have not added it in yet)(in mobile too.)also this option is on the left of volume slider
+- [ ] remove the testcases for sonare-piped-backend(i want cleaner code in it)
+- [ ] in mobile, backend is unable to connect issue.(all changes you do to desktop ui above related to downloads, playlist, audio source).
 
 ## Now
 
@@ -54,9 +65,9 @@
   - Offline mode shows downloaded songs only; there is no local-folder scan on mobile yet
     (the Folders screen now says so instead of showing made-up folders).
   - [x] Mobile known bugs fixed 2026-10-03 (prod-readiness F10): album heart, equalizer
-    preset and "stay offline automatically" are saved; Folders has an honest empty state.
-    Still open: the playlist heart (MOB-PL-004) — the backend has no endpoint for saving a
-    YouTube playlist.
+        preset and "stay offline automatically" are saved; Folders has an honest empty state.
+        Still open: the playlist heart (MOB-PL-004) — the backend has no endpoint for saving a
+        YouTube playlist.
   - The Audio screen's bands, crossfade, gapless, normalisation and speed are still local
     state (no DSP on the phone).
   - Settings rows other than Account (crossfade, folders, cache size) are still static.
