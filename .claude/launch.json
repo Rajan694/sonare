@@ -6,7 +6,7 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "--prefix",
-        "sonare-frontend/other-screens",
+        "sonare-frontend/desktop",
         "run",
         "dev"
       ],

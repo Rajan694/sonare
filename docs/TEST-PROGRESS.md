@@ -15,21 +15,21 @@
 
 ## Area 2: Web Summary
 - Status: done
-- Tests: `other-screens/test/{unit,app,components,screens}` - WEB-API, AUTH, HOOK, FAV, SET, SYNC, PLAYER, DL, TGT, DSP, TAG, LIB, STORE, DEMUX, QUEUE, UI, MUSIC, LAYOUT and one prefix per screen (427 tests)
+- Tests: `desktop/test/{unit,app,components,screens}` - WEB-API, AUTH, HOOK, FAV, SET, SYNC, PLAYER, DL, TGT, DSP, TAG, LIB, STORE, DEMUX, QUEUE, UI, MUSIC, LAYOUT and one prefix per screen (427 tests)
 - Network: msw against the fake host `api.sonare.test`, unhandled requests fail the test
-- Known bug: WEB-TAG-015 (`it.fails`, `.info` tag)
-- Last green command: `npm test --prefix "sonare-frontend/other-screens"` (470 passed, 1 expected fail - shared with Area 3)
+- Known bug WEB-TAG-015 (`.info` tag) fixed 2026-10-03; it is a normal test now
+- Last green command: `npm test --prefix "sonare-frontend/desktop"` (470 passed, 1 expected fail - shared with Area 3)
 - Plan check: 471/471 matched
 
 ## Area 3: Desktop Linux Summary
 - Status: done
 - Implemented IDs: DSK-001..043 (vitest project `desktop`, fake `@neutralinojs/lib` in `test/helpers/fakeNeutralino.ts`)
-- Last green command: `npm test --prefix "sonare-frontend/other-screens"`
+- Last green command: `npm test --prefix "sonare-frontend/desktop"`
 
 ## Area 4: Mobile Summary
 - Status: done
 - Implemented IDs: MOB-DATA x48, MOB-STORE x28, MOB-COMP x34, MOB-LIB x17, MOB-NAV x7, MOB-NAT x6, screens: HOME, SEARCH, LIB-S, PLS, PL, ALB, ART, NP, Q, LYR, EQ, DL-S, SET-S, SIGNIN, MODE, FOLD (209 jest tests; shared fixtures + navigation mock in `mobile/test-utils`)
-- Known bugs (`test.failing`): MOB-PL-004 / MOB-ALB-003 favourite buttons do nothing, MOB-EQ-002 equalizer preset not kept, MOB-MODE-003 "stay offline automatically" ignored, MOB-FOLD-001 Folders shows made-up folders
+- Known bugs (`test.failing`): MOB-PL-004 playlist favourite button does nothing (no backend endpoint). Fixed 2026-10-03: MOB-ALB-003, MOB-EQ-002, MOB-MODE-003, MOB-FOLD-001
 - Last green command: `npm test --prefix "sonare-frontend/mobile" -- --coverage` (209 passed)
 - Coverage: Stmts 84.7%, Branches 74.58%, Funcs 80.71%, Lines 84.28%
 - Plan check: 209/209 matched

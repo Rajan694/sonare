@@ -21,7 +21,7 @@ Scope: what `sonare-backend` (Node + Express) must expose, what `sonare-piped-ba
 
 Three UI targets exist today:
 
-- **web** — `sonare-frontend/other-screens` built by Vite, served in a browser
+- **web** — `sonare-frontend/desktop` built by Vite, served in a browser
 - **desktop** — the same bundle wrapped in Neutralino (`neutralino.config.json`)
 - **mobile** — `sonare-frontend/mobile`, React Native
 
@@ -107,7 +107,7 @@ Derived from the actual screens in both frontends. "L" = device-local, "S" = ser
 
 ### Playlist / Playlists (`screens/Playlist.tsx`, `Playlists.tsx`)
 
-`name, kind (local|synced|online), trackCount, downloadedCount, updatedAt` + tracks.
+`name, kind (local|synced|online), trackCount, downloadedCount` + tracks; `updatedAt` only on the user's own playlists.
 → `GET /me/playlists`, `GET /playlists/:id`, `GET /playlists/:id/tracks`, plus full CRUD (§6.5).
 
 ### NowPlaying (`screens/NowPlaying.tsx`, both)
@@ -320,6 +320,18 @@ That is **~35 of Piped's 56 routes dead weight** for a music client. Worth knowi
 
 Base: `/api/v1`. JSON. Bearer auth (Sonare's own JWT) on everything under `/me`.
 
+**Validation.** Every request body and query string is checked against a schema
+(`sonare-backend/src/validation.ts`). A request that doesn't fit answers
+`400 { error: { code: 'BAD_REQUEST', message } }`, where `message` is the first problem found
+(e.g. `Playlist name must be at most 100 characters`), and nothing is written. Unknown fields
+are ignored. Limits are listed with each route below.
+
+**Health.** `GET /healthz` → `{ ok, version, db, redis, piped }` where `db` / `redis` /
+`piped` are `'up' | 'down'` and `version` is the backend's package version. It answers 200
+when the database is up and **503** (with `ok: false`) when it is down; Redis is only a cache
+and Piped outages are reported per request, so neither changes the status code. The
+production image's `HEALTHCHECK` uses it.
+
 ### 6.1 Auth
 
 | Method | Path | Body / params |
@@ -342,17 +354,18 @@ routes answer 429 `RATE_LIMITED` with `Retry-After`. Email links point at `APP_U
 
 | Method | Path | Params | Upstream |
 |---|---|---|---|
-| GET | `/search` | `q`, `type=songs\|albums\|artists\|playlists\|all`, `cursor`, `limit` | `/search`, `/nextpage/search` |
-| GET | `/search/suggestions` | `q` | `/suggestions` |
-| GET | `/trending` | `region`, `limit` | `/trending` |
+| GET | `/healthz` | — | `/healthcheck` (see above) |
+| GET | `/search` | `q` (1–200 chars), `type=songs\|albums\|artists\|playlists\|all` (default `all`; anything else is 400), `cursor` | `/search`, `/nextpage/search` |
+| GET | `/search/suggestions` | `q` (1–200 chars) | `/suggestions` |
+| GET | `/trending` | `region` (two-letter country code, default `IN`), `limit` (1–100, default 50) | `/trending` |
 | GET | `/genres` | — | static |
 | GET | `/tracks/:id` | — | `/streams/:videoId` |
 | GET | `/albums/:id` | — | `/playlists/:id` |
 | GET | `/albums/:id/tracks` | `cursor` | `/playlists/:id`, `/nextpage/playlists/:id` |
 | GET | `/artists/:id` | — | `/channel/:id` |
-| GET | `/artists/:id/top-tracks` | `limit` | `/channel/:id` → `relatedStreams` |
+| GET | `/artists/:id/top-tracks` | `limit` (1–100, default 20) | `/channel/:id` → `relatedStreams` |
 | GET | `/artists/:id/albums` | `cursor` | `/channels/tabs?data=` |
-| GET | `/playlists/:id` | — | `/playlists/:id` |
+| GET | `/playlists/:id` | — → `{ id, name, kind: 'online', trackCount, downloadedCount }` (no `updatedAt`: Piped has no last-modified date) | `/playlists/:id` |
 | GET | `/playlists/:id/tracks` | `cursor` | `/nextpage/playlists/:id` |
 
 When Piped can't be reached (connection refused, DNS failure), these routes and
@@ -375,34 +388,37 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 
 | Method | Path | Body / params | Notes |
 |---|---|---|---|
-| GET | `/tracks/:id/lyrics` | `prefer=synced\|plain` | → `{ synced: boolean, provider: 'lrclib'\|'genius'\|'tags'\|'user', offsetMs, lines: [{atMs,text}], plain?: string, attribution?: { name, url } }` |
-| GET | `/lyrics/search` | `track`, `artist`, `album`, `durationSec` | manual picker for the "Import lyrics" button |
-| POST | `/tracks/:id/lyrics` | `{ lrc }` or `{ plain }` | user import |
-| PATCH | `/tracks/:id/lyrics/offset` | `{ offsetMs }` | the `Offset -0.3s` chip |
+| GET | `/tracks/:id/lyrics` | `prefer=synced\|plain` (anything else is 400) | → `{ synced: boolean, provider: 'lrclib'\|'genius'\|'tags'\|'user', offsetMs, lines: [{atMs,text}], plain?: string, attribution?: { name, url } }` |
+| GET | `/lyrics/search` | `track` (required, ≤ 200), `artist`, `album` | manual picker for the "Import lyrics" button |
+| POST | `/tracks/:id/lyrics` | `{ lrc }` or `{ plain }` (at least one, ≤ 100 000 chars each) | user import |
+| PATCH | `/tracks/:id/lyrics/offset` | `{ offsetMs }` (whole number, ±600 000) | the `Offset -0.3s` chip |
 | DELETE | `/tracks/:id/lyrics` | — | revert to auto |
 
 ### 6.5 User library & playlists
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/me/library/tracks` | `sort=addedAt\|playCount\|title`, `order`, `source=all\|server`, `cursor` |
+| GET | `/me/library/tracks` | `sort=addedAt\|playCount\|title`, `order=asc\|desc` |
 | GET | `/me/library/albums` · `/artists` · `/genres` | Library tabs |
 | GET | `/me/favourites/tracks` | the `Favourites` tab |
 | PUT / DELETE | `/me/favourites/tracks/:id` | heart toggle |
 | PUT / DELETE | `/me/favourites/albums/:id` | album heart |
 | PUT / DELETE | `/me/following/artists/:id` | Follow / Following |
-| GET | `/me/recently-played` | `limit` |
-| GET | `/me/most-played` | `limit`, `window=30d` |
-| GET | `/me/new-releases` | Home banner |
-| GET | `/discover/made-for-you` | Home carousel |
+| GET | `/me/recently-played` | `limit` (1–100, default 10) |
+| GET | `/me/most-played` | `limit` (1–100, default 20), `window=30d\|365d` |
+| GET | `/me/new-releases` | Home banner (placeholder: always empty for now) |
+| GET | `/discover/made-for-you` | Home carousel (placeholder: always empty for now) |
 | GET | `/me/playlists` | → `Playlist[]` with `kind`, `trackCount` |
-| POST | `/me/playlists` | `{ name, kind }` |
+| POST | `/me/playlists` | `{ name (1–100), kind?, description? (≤ 500) }`; `kind` is `local\|synced\|online` (default `online`; legacy `offline` is accepted) |
 | GET | `/me/playlists/:id` | |
-| PATCH | `/me/playlists/:id` | `{ name, description }` |
+| PATCH | `/me/playlists/:id` | `{ name?, description? }`, same limits |
 | DELETE | `/me/playlists/:id` | |
-| POST | `/me/playlists/:id/tracks` | `{ trackIds[] }` |
-| DELETE | `/me/playlists/:id/tracks` | `{ index }` or `{ trackIds[] }` |
-| PATCH | `/me/playlists/:id/tracks/order` | `{ from, to }` |
+| POST | `/me/playlists/:id/tracks` | `{ trackIds[] }` (1–200-char ids, at most 500) |
+| DELETE | `/me/playlists/:id/tracks` | `{ index }` (≥ 0) or `{ trackIds[] }` |
+| PATCH | `/me/playlists/:id/tracks/order` | `{ from, to }` (whole numbers ≥ 0) |
+| GET / PUT | `/me/settings` | PUT `{ eqPreset?, gapless?, normalization?, stayOffline?, streamQuality?, downloadQuality?, downloadFormat? }`: only the fields sent change. Qualities are `low\|normal\|high` (`downloadQuality: 'lossless'` is stored as `high`), `downloadFormat` is `opus\|m4a`; any other value is 400 (it used to be ignored) |
+| GET / PUT | `/me/player-state` | PUT `{ trackRef?, positionMs?, queue?, index?, shuffle?, repeat? }`; `trackRef` is `{ kind: 'server', id }` or `{ kind: 'local', fingerprint }`, `repeat` is `off\|all\|one` |
+| POST | `/me/sync` | `{ plays?: [{ trackRef, at, ms? }], favourites?: [{ trackRef, at? }] }` (≤ 1000 each); one bad entry rejects the whole request and nothing is recorded |
 
 ### 6.6 Device-local API — **not HTTP**
 
@@ -606,7 +622,7 @@ Genius keys stay server-side. Never ship them into the Neutralino or RN bundle.
 ## 9. Build order
 
 1. **`/search`, `/tracks/:id`, `/tracks/:id/stream`** over Piped — one vertical slice makes Search + NowPlaying real on all three platforms.
-2. Replace `data/mock.ts` in `other-screens` with a typed API client; keep the same exported names so the screens don't change.
+2. Replace `data/mock.ts` in `desktop` with a typed API client; keep the same exported names so the screens don't change.
 3. `/albums/:id`, `/artists/:id`, `/playlists/:id` — Album / Artist / Playlist screens.
 4. Auth + `/me/favourites` + play counts — Library's `PLAYS`, `Favourites`, `Most played` tabs stop being decorative.
 5. Lyrics (LRCLIB first, Genius second).

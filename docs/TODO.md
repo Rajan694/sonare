@@ -25,11 +25,10 @@
 - [ ] **Design gaps left on mobile** (features that don't exist yet, so no dead buttons were
       added): Now Playing's "Playing from <album>" eyebrow, audio output / cast card, sleep
       timer, and Settings rows for them.
-- [ ] **Desktop re-renders every row on each position tick.** `usePlayerStore()` is one
-      context whose value changes every 250 ms, so every SongRow re-renders while playing.
-      Enough main-thread load that WebCodecs decoding on the page fell behind real time
-      (why the decoder now runs in a worker). Splitting position out of the context would
-      make long lists lighter on WebKitGTK.
+- [x] **Desktop re-renders every row on each position tick.**
+      Done 2026-10-03 (prod-readiness F7): the position lives in its own store
+      (`store/playbackPosition.ts`, `usePlaybackPosition()`), the PlayerContext value is
+      memoised, and only time/progress displays subscribe.
 - [ ] IN mobile bounceback animation way too high.
 
 ## Now
@@ -52,11 +51,21 @@
   - API host is hardcoded to `10.0.2.2:3010` (emulator) in `mobile/src/data/config.ts`; a
     physical phone needs the machine's LAN IP, and release builds need HTTPS (cleartext is
     only allowed in debug).
-  - Offline mode shows downloaded songs only; there is no local-folder scan on mobile yet.
+  - Offline mode shows downloaded songs only; there is no local-folder scan on mobile yet
+    (the Folders screen now says so instead of showing made-up folders).
+  - [x] Mobile known bugs fixed 2026-10-03 (prod-readiness F10): album heart, equalizer
+    preset and "stay offline automatically" are saved; Folders has an honest empty state.
+    Still open: the playlist heart (MOB-PL-004) — the backend has no endpoint for saving a
+    YouTube playlist.
+  - The Audio screen's bands, crossfade, gapless, normalisation and speed are still local
+    state (no DSP on the phone).
   - Settings rows other than Account (crossfade, folders, cache size) are still static.
   - Artist `monthlyListeners` is actually YouTube subscriber count.
-- [ ] **Accounts:** no password reset, email verification or login rate limiting yet; tokens
-      are stored in AsyncStorage (fine for dev, use Keychain/Keystore storage for release).
+- [x] ~~**Accounts:** no password reset, email verification or login rate limiting yet~~
+      Done: password reset, email verification and login rate limiting are in the backend and
+      both apps.
+- [ ] Mobile tokens are stored in AsyncStorage (fine for dev, use Keychain/Keystore storage
+      for release).
 - [ ] Desktop guest gate resumes the like / follow / new playlist after sign-in, but for "Add to
       playlist…" in the track menu and lyric edits it only brings you back to the same screen.
 - [ ] Album-cover size hints live in an in-memory cache (`albumThumbFor` in
@@ -66,12 +75,12 @@
       (`gstreamer1.0-libav`) isn't installed. Opus/MP3 play; the muxed AAC fallback stream
       and the `.m4a` files in the local library won't. Also a packaging note for users.
 - [x] ~~Track art at size=640 404s when `maxresdefault.jpg` is missing~~ The backend now probes
-      maxresdefault → hq720 → mqdefault once per video (`largestThumb` in `app.ts`).
+      maxresdefault → hq720 → mqdefault once per video (`largestThumb` in `routes/media.routes.ts`).
 - [ ] **Neutralino 6.9.0 aborts on rejected WebSocket handshakes** (`websocketpp ... invalid
 state`). Only hit when a second client attaches without a connect token (testing);
       worth rechecking on a newer Neutralino.
-- [ ] Linux window opens with the Web Inspector docked (`enableInspector: true`) - fine for
-      dev, make sure release builds turn it off.
+- [x] ~~Linux window opens with the Web Inspector docked~~ `enableInspector` is false in
+      `neutralino.config.json`; only `runFE.sh linux` turns it on for development.
 
 ## Later: external dependencies that may break
 
@@ -92,12 +101,12 @@ Parked until the app runs cleanly. Rajan has ideas for fixing these.
       fresh URL on 403, but that's a workaround, not a fix.
 - [ ] **Artist pages depend on search.** The extractor returns nothing for auto-generated
       "- Topic" artist channels, so top tracks / albums now come from YouTube Music search
-      filtered by channel id (`searchArtistCatalog` in `sonare-backend/src/app.ts`).
+      filtered by channel id (`searchArtistCatalog` in `sonare-backend/src/routes/catalog.routes.ts`).
 - [ ] **Expiring / hardcoded YouTube URLs.**
   - `googlevideo.com` stream URLs expire after ~6h; anything caching them longer
-    (Redis, waveform extraction in `sonare-backend/src/peaks.ts`) hands out dead links.
+    (Redis, waveform extraction in `sonare-backend/src/services/peaks.ts`) hands out dead links.
   - Thumbnails are built by hand as `https://i.ytimg.com/vi/${id}/...` in
-    `sonare-backend/src/app.ts`; should come from the Piped response instead.
+    `sonare-backend/src/routes/media.routes.ts`; should come from the Piped response instead.
 
 ### Medium risk
 
