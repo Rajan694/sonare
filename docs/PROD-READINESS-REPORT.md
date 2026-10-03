@@ -4,13 +4,12 @@ Work for [`PROD-READINESS-PLAN.md`](PROD-READINESS-PLAN.md), done 2026-10-03 on 
 every repo. Each task was committed separately and pushed as it was finished. Nothing was
 pushed to `main` and nothing was force-pushed.
 
-> **Checks were not run for most of this work.** After B10 the owner said: *"just write the code,
-> no need to test it, i will test it myself"*. So the §0 checks ran before every commit **up to
-> and including B10** (backend). From **B11 onward** (the rest of the backend docs, all frontend
-> tasks, Piped and root) **no check commands were run**: no tests, lint, format check or build.
-> The two exceptions: one `tsc --noEmit` on mobile for F9, to find the strict-mode errors (it
-> came back clean after the fixes), and one `eslint` on mobile for F11, to list the warnings.
-> Treat every frontend commit as **unverified** until the checks in §3 have been run.
+> **Checks.** The §0 checks ran before every backend commit through B10. At the owner's
+> request the remaining tasks were first written without running checks. Afterwards **all
+> three apps were checked in full** (§3), and that turned up one bug: MOB-ALB-003, fixed in
+> FE `fdc6c33`. The intermediate frontend commits between `ba44fdd` and `93cf4de` were not
+> each checked on their own, and the F6 commit `6fddd6b` alone fails the mobile typecheck
+> (see F6).
 
 ## 1. Tasks
 
@@ -38,14 +37,14 @@ Repos: **BE** = sonare-backend, **FE** = sonare-frontend, **P** = sonare-piped-b
 | F7 | done | FE `1fa9fc9`, `e03c32d` | `store/playbackPosition.ts` (`useSyncExternalStore`); `positionMs` removed from `PlayerState`; memoised context value with stable actions; only time/progress components subscribe; tests WEB-PERF-001/002 (React.Profiler). The `e03c32d` follow-up loosened one count to `>=`. |
 | F8 | done | FE `c37b0a8` | Home shows "Could not load recently played" + "Try again" when signed in, online, and nothing is cached; test WEB-HOME-007. |
 | F9 | done | FE `358db94` | mobile `"strict": true`; fixed Search, Artwork, the two native emitters, Artist and `data.test.tsx` without `any` or `!`. |
-| F10 | partly | FE `283edf5` (ALB-003), `8b33539` (EQ-002), `dea1b38` (MODE-003), `46ff9cc` (FOLD-001), `7488a0a` (WEB-TAG-015) | 4 of 5 mobile bugs fixed and their `test.failing` removed, plus the optional WEB-TAG-015. **MOB-PL-004 not fixed**: there is no backend endpoint (see §2). |
+| F10 | partly | FE `283edf5` + `fdc6c33` (ALB-003), `8b33539` (EQ-002), `dea1b38` (MODE-003), `46ff9cc` (FOLD-001), `7488a0a` (WEB-TAG-015) | 4 of 5 mobile bugs fixed and their `test.failing` removed, plus the optional WEB-TAG-015. **MOB-PL-004 not fixed**: there is no backend endpoint (see §2). |
 | F11 | done | FE `b55b5b9` | All `no-void` (16) and `no-shadow` (2) warnings fixed; inline styles left alone. |
 | F12 | done | FE `e234003` | Root `package.json` (husky, lint-staged, `prepare`); a `lint-staged.config.js` in each app; `installFE.sh` installs the root first. |
 | F13 | done | FE `93cf4de` | MIT `LICENSE` at the repo root; root, desktop and mobile READMEs (mobile's replaces the RN template). |
 | P1 | done | P `c6ada0b` (new `generic-branch` from `main`) | `POSTGRES_PASSWORD=${PIPED_DB_PASSWORD:-changeme}`; README and `config.properties.example` explain the production setting. No Java changes. |
 | R1 | done | R `b8103d2` | `TODO.md` and `TEST-PROGRESS.md` moved to `docs/` and updated; `other-screens` → `desktop`; contract covers `/healthz`, validation limits and B8. |
 | R2 | done | R `8cd86c5` | MIT `LICENSE` with the AGPL note for Piped; root README. |
-| R3 | done | R `93d994d` | Submodules point at the `generic-branch` heads: BE `c09debe`, FE `93cf4de`, P `c6ada0b`. |
+| R3 | done | R `93d994d`, then a second bump after the MOB-ALB-003 fix | Submodules point at the `generic-branch` heads: BE `c09debe`, FE `fdc6c33`, P `c6ada0b`. |
 
 ## 2. Not done, or done differently
 
@@ -65,7 +64,6 @@ Repos: **BE** = sonare-backend, **FE** = sonare-frontend, **P** = sonare-piped-b
   `/me/following/artists/:id`). As the plan asks, I didn't invent one. Options: add
   `/me/favourites/playlists/:id` (new table), or decide that YouTube playlists are saved
   as albums. The heart still does nothing until then.
-- **Checks after B10 were not run** (see the note at the top).
 - **Postgres 16** (the container's own) was used for the backend tests instead of 17.
 - `docker-compose.prod.yml` marks `env_file: .env.production` as `required: false`, so the plan's
   `config` check works before that file exists. Without the file the backend still exits at start,
@@ -86,24 +84,40 @@ last run after B10 (`7b993f1`; B11 changed only `LICENSE` and `README.md`):
 
 Lint showed 0 problems from B6 onward (it was 103 warnings at the start).
 
-**Desktop / web** and **mobile**: **not run after any change** (see the note at the top). The
-only runs were at the start of the session, on the untouched code:
+**Desktop / web** (`desktop/`: `npm run format:check && npm run lint && npm run typecheck && npm test && npm run build`), at FE `fdc6c33`:
 
 ```
-desktop: ✓ built in 6.09s   (format, lint, typecheck, tests and build all passed)
-mobile:  Test Suites: 9 passed, 9 total / Tests: 218 passed, 218 total
+All matched files use Prettier code style!
+✖ 48 problems (0 errors, 48 warnings)     # all warnings were there before this work (no-explicit-any in tests)
+✓ Test plan check passed: 484 tests matched perfectly between TEST-PLAN.md and test files.
+ Test Files  29 passed (29)
+      Tests  484 passed (484)
+resources/assets/streamDecoder.worker-B_a0qOYn.js    3.56 kB
+✓ built in 6.41s
 ```
 
-Expected after this work if everything passes:
-- desktop: 3 more tests (WEB-PERF-001/002, WEB-HOME-007), and WEB-TAG-015 is now a normal
-  test, so 0 expected failures;
-- mobile: still 218 tests, with only MOB-PL-004 left as `test.failing`.
+WEB-TAG-015 is now a normal passing test, so there are no expected failures.
 
-Things most likely to need a touch-up when you run them:
-- formatting in the files moved by the scripts in F4/F5;
-- WEB-PERF-001's render counts (it mounts the real `App` with `MiniPlayer` and `SongRow`);
-- `export type * from` going through mobile's Babel/Jest;
-- mobile ESLint on the new `lint-staged.config.js`.
+**Mobile** (`mobile/`: `npm run format:check && npm run lint && npm run typecheck && npm test`), at FE `fdc6c33`:
+
+```
+All matched files use Prettier code style!
+✖ 38 problems (0 errors, 38 warnings)     # no no-shadow / no-void left; the rest are inline styles etc.
+> tsc --noEmit                            # strict, clean
+✓ Test plan check passed: 218 tests matched perfectly between TEST-PLAN.md and test files.
+Test Suites: 9 passed, 9 total
+Tests:       218 passed, 218 total
+```
+
+MOB-PL-004 is the only `test.failing` left.
+
+The Metro bundle from §0
+(`npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output …`)
+writes a 4.7 MB bundle without errors, with `../shared` in place (F6).
+
+The other plan checks also pass:
+- `grep -rn "other-screens" --exclude-dir=node_modules .` in the frontend finds nothing.
+- The frontend pre-commit hook ran lint-staged on the `fdc6c33` commit.
 
 ## 4. Decisions the plan didn't cover
 
