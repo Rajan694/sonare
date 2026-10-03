@@ -22,29 +22,66 @@
       Done 2026-09-27. Web at phone width had no top bar at all (no search field, settings or
       profile): it now has the M-series headers. Mobile app: detail screens open inside
       the tab (mini player + tab bar stay), header alignment, Library toolbar, Now Playing.
-- [ ] **Design gaps left on mobile** (features that don't exist yet, so no dead buttons were
+- [x] **Design gaps left on mobile** (features that don't exist yet, so no dead buttons were
       added): Now Playing's "Playing from <album>" eyebrow, audio output / cast card, sleep
       timer, and Settings rows for them.
+      Done 2026-10-03: "Playing from" album / playlist / artist / search; output card and
+      picker (speaker, wired, USB, Bluetooth via ExoPlayer's preferred device); sleep timer
+      (15-90 min or end of track, counted natively); Settings rows for both. No Chromecast /
+      cast — that needs the Cast SDK and a receiver app.
 - [x] **Desktop re-renders every row on each position tick.**
       Done 2026-10-03 (prod-readiness F7): the position lives in its own store
       (`store/playbackPosition.ts`, `usePlaybackPosition()`), the PlayerContext value is
       memoised, and only time/progress displays subscribe.
-- [ ] IN mobile bounceback animation way too high.
-- [ ] in search we have browse categories, it have ambient, electronica etc..., cant it have devotional, punjabi, bhojpuri, popular, top this year.
-- [ ] add a setting in settings section for preferred lyrics language, if avalilable that songs lyrics in that laguage then use it else use the native song one(like currently it is)
-- [ ] in search when we are searching a song, we show artists panel, but there we dont load thumbnails.
-- [ ] when add a playlist, native modal opens to enter a playlist name, which is not good, also playback stops, which is not correct.use a custom model related to our theme
-- [ ] on each songs, add a option to add it to playlist( in the bottom player).
-- [ ] in the artists panel we have option to show the artists(open question how we can follow artist, does liking a song, or adding it to a playlist showld add that songs artist in this panel or top played songs artist goes there). same question for genre(use the devotional, party, sad etc...) same question for album?
-- [ ] under library in songs panel, we have 3 optnos, recently added,all sources and downlaoed, on click of them, thedropdown is native, use a custom related to our theme. -[ ] in some screens after song title we have - line then source(server/local) then time, what is -(its for album(confirmed from pdf file in design systems(use it for artist name, also based on the image, we have to show plays counter(page no. 23 in pdf)))).
-- from library, remove the folders option as we have folder option shown on top right in songs screen(folder button is shown in album, artist, genres, why???)
-- [ ] in page 31 in the pdf, we have option to change the speaker(we have not added it in yet)(in mobile too.)also this option is on the left of volume slider
-- [ ] remove the testcases for sonare-piped-backend(i want cleaner code in it)
-- [ ] in mobile, backend is unable to connect issue.(all changes you do to desktop ui above related to downloads, playlist, audio source).
+- [x] IN mobile bounceback animation way too high.
+      Done 2026-10-03: every spring settles without overshoot (`springs` in `mobile/src/lib/motion.tsx`):
+      sheets, swipe-to-skip, mini player swipe, presses, toasts, segmented controls.
+- [x] in search we have browse categories, it have ambient, electronica etc..., cant it have devotional, punjabi, bhojpuri, popular, top this year.
+      Done 2026-10-03: `GET /genres` lists Popular, Top this year, Bollywood, Punjabi, Bhojpuri,
+      Devotional, Party, Romantic, Sad, Lo-fi, Workout, Ghazal, … each with the search it opens.
+- [x] add a setting in settings section for preferred lyrics language, if avalilable that songs lyrics in that laguage then use it else use the native song one(like currently it is)
+      Done 2026-10-03: Settings → Lyrics language (per device). LRCLIB has no language field, so the
+      backend picks the version written in the chosen script (`?script=devanagari|latin|gurmukhi|…`)
+      and falls back to the song's own.
+- [x] in search when we are searching a song, we show artists panel, but there we dont load thumbnails.
+      Done 2026-10-03: the Artists row uses the artists' pictures and opens their pages.
+- [x] when add a playlist, native modal opens to enter a playlist name, which is not good, also playback stops, which is not correct.use a custom model related to our theme
+      Done 2026-10-03: themed dialogs (`desktop/src/store/dialogs.ts`) replace every window.prompt /
+      window.confirm; the native ones blocked the page, which stalled the audio on WebKitGTK.
+- [x] on each songs, add a option to add it to playlist( in the bottom player).
+      Done 2026-10-03: bottom player and Now Playing (desktop), Now Playing's + (mobile).
+- [x] in the artists panel we have option to show the artists(open question how we can follow artist, does liking a song, or adding it to a playlist showld add that songs artist in this panel or top played songs artist goes there). same question for genre(use the devotional, party, sad etc...) same question for album?
+      Done 2026-10-03 (decided: automatic): Artists = followed, then the artists of liked and
+      playlisted songs (with their song count). Genres = the mood / language categories.
+      Albums stay the saved ones: YouTube songs don't say which album they're from.
+- [x] under library in songs panel, we have 3 optnos, recently added,all sources and downlaoed, on click of them, thedropdown is native, use a custom related to our theme.
+      Done 2026-10-03: `desktop/src/components/ui/Select.tsx` everywhere (Library, Settings,
+      Equalizer); mobile's sort opens a themed sheet.
+- [x] in some screens after song title we have - line then source(server/local) then time, what is -(its for album(confirmed from pdf file in design systems(use it for artist name, also based on the image, we have to show plays counter(page no. 23 in pdf)))).
+      Done 2026-10-03: the column shows the artist when a song has no album, and a PLAYS column
+      (your play count) sits before the duration.
+- [x] from library, remove the folders option as we have folder option shown on top right in songs screen(folder button is shown in album, artist, genres, why???)
+      Done 2026-10-03: no Folders tab (desktop and mobile); the Folders button shows on Songs only.
+- [x] in page 31 in the pdf, we have option to change the speaker(we have not added it in yet)(in mobile too.)also this option is on the left of volume slider
+      Done 2026-10-03: desktop output button left of the volume + Now Playing card (Linux window:
+      `pactl` moves Sonare's PulseAudio / PipeWire stream, so `os.execCommand` is now allowed in
+      neutralino.config.json; browsers / WebView2: setSinkId; hidden elsewhere). Mobile: see above.
+- [x] remove the testcases for sonare-piped-backend(i want cleaner code in it)
+      Done 2026-10-03: `testing/` and the docker-compose test workflows are gone; CI keeps the build.
+- [x] in mobile, backend is unable to connect issue.(all changes you do to desktop ui above related to downloads, playlist, audio source).
+      Done 2026-10-03: debug builds use localhost:3010 over `adb reverse` (runFE.sh sets it up, emulator
+      and USB phones alike); Settings → Server address for a phone on Wi-Fi. The desktop changes
+      above have their mobile counterparts.
 
 ## Now
 
 - [ ] Make the app runnable end to end with all UI working properly (desktop + mobile)
+
+- [ ] **Tests behind the 2026-10-03 changes.** 20 desktop tests still drive `window.prompt` /
+      `window.confirm`, the native `<select>`s and the old genre list, and fail against the themed
+      dialogs / dropdowns (layout, music, library-catalog, home-search, player-screens,
+      playlists, settings-downloads suites). Mobile tests weren't run. New code (dialogs,
+      Select, output picker, sleep timer, queue restore, lyrics script) has no tests yet.
 
 ### Found in the 2026-09-24 UI audit, not fixed yet
 
@@ -57,31 +94,32 @@
 - [ ] **Mobile follow-ups:**
   - The native player is **Android only**. iOS needs the same bridge on AVFoundation +
     MPNowPlayingInfoCenter / MPRemoteCommandCenter (`src/native/SonarePlayer.ts` is the contract).
-  - Queue restore: after the app process dies, the queue and position are gone (the server has
-    `/me/player-state` for this).
-  - API host is hardcoded to `10.0.2.2:3010` (emulator) in `mobile/src/data/config.ts`; a
-    physical phone needs the machine's LAN IP, and release builds need HTTPS (cleartext is
-    only allowed in debug).
+  - [x] ~~Queue restore~~ Done 2026-10-03: queue, position, shuffle / repeat and "playing from"
+        are saved on the phone and to `/me/player-state`, and come back paused (`store/playerPersist.ts`).
+  - [x] ~~API host hardcoded to `10.0.2.2:3010`~~ Done 2026-10-03: localhost over `adb reverse`,
+        plus Settings → Server address. Release builds still need HTTPS.
   - Offline mode shows downloaded songs only; there is no local-folder scan on mobile yet
     (the Folders screen now says so instead of showing made-up folders).
   - [x] Mobile known bugs fixed 2026-10-03 (prod-readiness F10): album heart, equalizer
         preset and "stay offline automatically" are saved; Folders has an honest empty state.
         Still open: the playlist heart (MOB-PL-004) — the backend has no endpoint for saving a
         YouTube playlist.
-  - The Audio screen's bands, crossfade, gapless, normalisation and speed are still local
-    state (no DSP on the phone).
+  - [x] ~~The Audio screen's controls are local state~~ Done before 2026-10-03: they run in the
+        native player's own audio processing.
   - Settings rows other than Account (crossfade, folders, cache size) are still static.
   - Artist `monthlyListeners` is actually YouTube subscriber count.
 - [x] ~~**Accounts:** no password reset, email verification or login rate limiting yet~~
       Done: password reset, email verification and login rate limiting are in the backend and
       both apps.
-- [ ] Mobile tokens are stored in AsyncStorage (fine for dev, use Keychain/Keystore storage
-      for release).
-- [ ] Desktop guest gate resumes the like / follow / new playlist after sign-in, but for "Add to
+- [x] ~~Mobile tokens are stored in AsyncStorage~~ Already in the Keychain / Keystore
+      (`react-native-keychain`, `mobile/src/data/auth.ts`).
+- [x] Desktop guest gate resumes the like / follow / new playlist after sign-in, but for "Add to
       playlist…" in the track menu and lyric edits it only brings you back to the same screen.
-- [ ] Album-cover size hints live in an in-memory cache (`albumThumbFor` in
+      Done 2026-10-03: the playlist picker opens after sign-in; lyric edits / offsets carry on.
+- [x] Album-cover size hints live in an in-memory cache (`albumThumbFor` in
       `sonare-backend/src/normalize/index.ts`); after a backend restart, covers fall back to
       the ~2 MB signed image until the album shows up in a search again.
+      Done 2026-10-03: also kept in Redis for 30 days.
 - [ ] **Linux build can't play AAC.** WebKitGTK decodes through GStreamer, and the AAC decoder
       (`gstreamer1.0-libav`) isn't installed. Opus/MP3 play; the muxed AAC fallback stream
       and the `.m4a` files in the local library won't. Also a packaging note for users.

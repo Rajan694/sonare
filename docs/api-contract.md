@@ -82,7 +82,7 @@ Derived from the actual screens in both frontends. "L" = device-local, "S" = ser
 | As-you-type suggestions | S | `GET /search/suggestions?q=` |
 | Results, filterable: Songs / Albums / Artists / Playlists / Genres | S | `GET /search?q=&type=&cursor=` |
 | Local results interleaved, `source` badge per row | L+S | local index + above |
-| Browse categories grid (Ambient, Electronica, Post-rock, Indie, Jazz, Classical, Hip-hop, Folk) | S | `GET /genres` |
+| Browse categories grid (Popular, Top this year, Bollywood, Punjabi, Bhojpuri, Devotional, Party, Romantic, Sad, …) | S | `GET /genres` |
 | "N more results not available offline" | — | client-computed |
 
 ### Library (`screens/Library.tsx`, both)
@@ -358,7 +358,7 @@ routes answer 429 `RATE_LIMITED` with `Retry-After`. Email links point at `APP_U
 | GET | `/search` | `q` (1–200 chars), `type=songs\|albums\|artists\|playlists\|all` (default `all`; anything else is 400), `cursor` | `/search`, `/nextpage/search` |
 | GET | `/search/suggestions` | `q` (1–200 chars) | `/suggestions` |
 | GET | `/trending` | `region` (two-letter country code, default `IN`), `limit` (1–100, default 50) | `/trending` |
-| GET | `/genres` | — | static |
+| GET | `/genres` | — | static: `[{ id, name, query }]`; opening a category searches for `query` |
 | GET | `/tracks/:id` | — | `/streams/:videoId` |
 | GET | `/albums/:id` | — | `/playlists/:id` |
 | GET | `/albums/:id/tracks` | `cursor` | `/playlists/:id`, `/nextpage/playlists/:id` |
@@ -388,7 +388,7 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 
 | Method | Path | Body / params | Notes |
 |---|---|---|---|
-| GET | `/tracks/:id/lyrics` | `prefer=synced\|plain` (anything else is 400) | → `{ synced: boolean, provider: 'lrclib'\|'genius'\|'tags'\|'user', offsetMs, lines: [{atMs,text}], plain?: string, attribution?: { name, url } }` |
+| GET | `/tracks/:id/lyrics` | `prefer=synced\|plain`, `script=original\|latin\|devanagari\|gurmukhi\|arabic\|bengali\|gujarati\|tamil\|telugu` (anything else is 400; a script picks the LRCLIB version written in it, else the original) | → `{ synced: boolean, provider: 'lrclib'\|'genius'\|'tags'\|'user', offsetMs, lines: [{atMs,text}], plain?: string, attribution?: { name, url } }` |
 | GET | `/lyrics/search` | `track` (required, ≤ 200), `artist`, `album` | manual picker for the "Import lyrics" button |
 | POST | `/tracks/:id/lyrics` | `{ lrc }` or `{ plain }` (at least one, ≤ 100 000 chars each) | user import |
 | PATCH | `/tracks/:id/lyrics/offset` | `{ offsetMs }` (whole number, ±600 000) | the `Offset -0.3s` chip |
@@ -399,7 +399,7 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/me/library/tracks` | `sort=addedAt\|playCount\|title`, `order=asc\|desc` |
-| GET | `/me/library/albums` · `/artists` · `/genres` | Library tabs |
+| GET | `/me/library/albums` · `/artists` · `/genres` | Library tabs. `/artists`: followed artists, then the artists of liked or playlisted songs (`following: false`, `songCount`) |
 | GET | `/me/favourites/tracks` | the `Favourites` tab |
 | PUT / DELETE | `/me/favourites/tracks/:id` | heart toggle |
 | PUT / DELETE | `/me/favourites/albums/:id` | album heart |
