@@ -164,28 +164,34 @@ Parked until the app runs cleanly. Rajan has ideas for fixing these.
 
 ### Medium risk
 
-- [ ] **`:latest` Docker images.** `1337kavin/piped-proxy:latest` and
-      `1337kavin/bg-helper-server:latest` in `sonare-piped-backend/docker-compose.yml`
-      can change incompatibly or stop being published (single-maintainer project).
-      Pin to digests.
-- [ ] **JitPack.** NewPipeExtractor is fetched from `jitpack.io` by commit hash. If JitPack
-      is down or purges the build, `docker compose build piped` fails. Keep a backup with
-      `docker save sonare-piped:local`.
-- [ ] **Lyrics providers.**
-  - LRCLIB (`lrclib.net`): free community service, no SLA, no key.
-  - Genius API: needs `GENIUS_CLIENT_ACCESS_TOKEN`; token can be revoked or rate-limited.
+- [x] ~~**`:latest` Docker images.**~~ `piped-proxy` and `bg-helper-server` are pinned to the
+      digests that were running (2026-10-04); Hub's `:latest` had already moved past them.
+      To upgrade: pull `:latest`, test playback, copy the digest into `docker-compose.yml`.
+- [x] ~~**JitPack.**~~ NewPipeExtractor still comes from `jitpack.io` by commit hash, but
+      `runPiped.sh` now saves each build that starts healthy to `image-backup/` (gitignored,
+      ~180 MB) and loads it when the image is missing. A failed rebuild already fell back to
+      the previous image. Still exposed: a _new_ extractor commit can't be built while
+      JitPack is down.
+- [x] ~~**Lyrics providers.**~~ Genius is gone (it only ever gave a link). LRCLIB is the one
+      provider: found lyrics are cached in Redis with no expiry; when LRCLIB doesn't answer
+      (8 s timeout) the API returns 502 `LYRICS_UNAVAILABLE`, caches nothing, and both
+      apps show "try again" instead of "no lyrics". Still no SLA: a long outage means no
+      lyrics for songs nobody has opened yet.
 
 ### Low risk
 
-- [ ] **Piped's default public endpoints** in `config.properties` (`kavin.rocks` RYD proxy,
-      SponsorBlock, Matrix, capmonster). Sonare doesn't appear to use them; consider
-      `DISABLE_RYD:true` etc.
+- [x] ~~**Piped's default public endpoints.**~~ RYD was called on every `/streams` request
+      and a Matrix sync stayed connected to matrix.org. Now `DISABLE_RYD:true`, empty
+      `SPONSORBLOCK_SERVERS` and `MATRIX_SERVER` (our fork skips the sync when it's empty), and
+      `COMPROMISED_PASSWORD_CHECK:false`. Existing installs: same edits in `config.properties`.
 - [ ] **Toolchain drift.**
   - Neutralino 6.9.0 binaries are downloaded from GitHub on install.
   - Google Play raises the required Android target SDK yearly; RN / Reanimated 4 /
     NativeWind / JDK upgrades are tightly coupled.
   - npm deps use `^` ranges; safe while the lockfiles are kept.
-  - ffmpeg must be on the host, otherwise waveforms silently fall back to fake peaks.
+  - ~~ffmpeg must be on the host, otherwise waveforms silently fall back to fake peaks.~~
+    Now warned at startup and shown on `/healthz` and the admin overview; the production
+    image installs it (it didn't before).
 
 ### Non-technical
 

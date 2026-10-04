@@ -11,7 +11,7 @@ Scope: what `sonare-backend` (Node + Express) must expose, what `sonare-piped-ba
 |---|---|
 | D1 | `sonare-backend` exposes a **Sonare-native API** shaped like the UI's `Track / Album / Artist / Playlist` types (`src/data/types.ts`). |
 | D2 | `sonare-piped-backend` is a **private upstream**, not a public API. The frontends never call it directly. Express calls it server-side and normalises. |
-| D3 | Lyrics come from **Genius** (your keys) for metadata + plain lyrics, with **LRCLIB** for time-synced `.lrc`. See §4 — Genius alone cannot satisfy the Lyrics screen. |
+| D3 | Lyrics come from **LRCLIB** (synced `.lrc` and plain text). Genius was dropped on 2026-10-04: its API returns only a link, never the lyrics. See §4. |
 | D4 | **Local player / offline mode is native-only.** The web build ships without it. See §1. |
 | D5 | User data (favourites, play counts, playlists, history) lives in **Sonare's own DB**, not in Piped's. Piped's `/user/*` and `/feed` endpoints are not used. |
 
@@ -205,7 +205,9 @@ The four `music_*` filters are what make Piped usable as a music backend at all.
 
 ---
 
-## 4. Lyrics — Genius is not enough on its own
+## 4. Lyrics — LRCLIB (Genius was dropped)
+
+_Genius was removed on 2026-10-04. §4.1–4.2 are kept as the reason it isn't used._
 
 ### 4.1 Genius API (`https://api.genius.com`, `Authorization: Bearer <CLIENT_ACCESS_TOKEN>`)
 
@@ -243,11 +245,13 @@ No key, no auth. Send a descriptive `User-Agent` (e.g. `Sonare/1.0 (https://gith
 1. embedded tags on the local file  (USLT / SYLT / LYRICS)  → synced or plain
 2. LRCLIB /api/get  (exact: track+artist+album+duration)    → synced
 3. LRCLIB /api/search (fuzzy: track+artist)                 → synced
-4. Genius /search → best hit → plain lyrics                 → plain, attributed
-5. user-imported .lrc / .txt                                → synced or plain
+4. user-imported .lrc / .txt                                → synced or plain
 ```
 
 Response always carries `provider` and `synced` so the UI can render the badge honestly.
+If LRCLIB doesn't answer (error, timeout after 8 s), the backend answers **502
+`LYRICS_UNAVAILABLE`** instead of a 404 and caches nothing, so the apps can say "try again"
+rather than "no lyrics"; found lyrics stay cached in Redis, so only unseen songs are affected.
 
 ---
 
@@ -277,7 +281,7 @@ Response always carries `provider` and `synced` so the UI can render the badge h
 |---|---|---|
 | `Track.album` / `albumId` | not on `StreamItem`; only via the album playlist that contains it | needs a reverse index or a second call |
 | `Album.year` | `Playlist.description` / YT Music metadata | often missing → nullable |
-| `Album.genre` | not exposed | derive from Genius or leave null |
+| `Album.genre` | not exposed | null |
 | `Album.trackCount` | `Playlist.videos` | direct |
 | `Artist.monthlyListeners` | `Channel.subscriberCount` | **not the same number** — either relabel the UI to "subscribers" or drop it |
 | `Artist.albumCount` | count of items in the Albums tab | extra call |
@@ -293,7 +297,7 @@ Response always carries `provider` and `synced` so the UI can render the badge h
 
 | Sonare need | Owner |
 |---|---|
-| Lyrics (synced + plain + offset + import) | Express → LRCLIB / Genius |
+| Lyrics (synced + plain + offset + import) | Express → LRCLIB |
 | Waveform peaks | Express (§8.4) |
 | Favourites (tracks / albums / artists) | Express + DB |
 | Play counts & history | Express + DB |
@@ -326,8 +330,9 @@ Base: `/api/v1`. JSON. Bearer auth (Sonare's own JWT) on everything under `/me`.
 (e.g. `Playlist name must be at most 100 characters`), and nothing is written. Unknown fields
 are ignored. Limits are listed with each route below.
 
-**Health.** `GET /healthz` → `{ ok, version, db, redis, piped }` where `db` / `redis` /
-`piped` are `'up' | 'down'` and `version` is the backend's package version. It answers 200
+**Health.** `GET /healthz` → `{ ok, version, db, redis, piped, ffmpeg }` where `db` / `redis` /
+`piped` are `'up' | 'down'`, `ffmpeg` is `'found' | 'missing'` (missing = placeholder
+waveforms) and `version` is the backend's package version. It answers 200
 when the database is up and **503** (with `ok: false`) when it is down; Redis is only a cache
 and Piped outages are reported per request, so neither changes the status code. The
 production image's `HEALTHCHECK` uses it.
@@ -388,8 +393,8 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 
 | Method | Path | Body / params | Notes |
 |---|---|---|---|
-| GET | `/tracks/:id/lyrics` | `prefer=synced\|plain`, `script=original\|latin\|devanagari\|gurmukhi\|arabic\|bengali\|gujarati\|tamil\|telugu` (anything else is 400; a script picks the LRCLIB version written in it, else the original) | → `{ synced: boolean, provider: 'lrclib'\|'genius'\|'tags'\|'user', offsetMs, lines: [{atMs,text}], plain?: string, attribution?: { name, url } }` |
-| GET | `/lyrics/search` | `track` (required, ≤ 200), `artist`, `album` | manual picker for the "Import lyrics" button |
+| GET | `/tracks/:id/lyrics` | `prefer=synced\|plain`, `script=original\|latin\|devanagari\|gurmukhi\|arabic\|bengali\|gujarati\|tamil\|telugu` (anything else is 400; a script picks the LRCLIB version written in it, else the original) | → `{ synced: boolean, provider: 'lrclib'\|'tags'\|'user', offsetMs, lines: [{atMs,text}], plain?: string }`; 404 = no lyrics, **502 `LYRICS_UNAVAILABLE`** = LRCLIB didn't answer (not cached) |
+| GET | `/lyrics/search` | `track` (required, ≤ 200), `artist`, `album` | manual picker for the "Import lyrics" button; 502 `LYRICS_UNAVAILABLE` when LRCLIB is down |
 | POST | `/tracks/:id/lyrics` | `{ lrc }` or `{ plain }` (at least one, ≤ 100 000 chars each) | user import |
 | PATCH | `/tracks/:id/lyrics/offset` | `{ offsetMs }` (whole number, ±600 000) | the `Offset -0.3s` chip |
 | DELETE | `/tracks/:id/lyrics` | — | revert to auto |
@@ -491,7 +496,7 @@ Web ships a stub where `localLibrary` throws `UnsupportedOnWeb` and `CAPS.localL
 
 ### `Playlist` → `Album`
 
-`id` ← `yt:${playlistId}` · `title` ← `name` · `artist` ← `uploader` · `artistId` ← `uploaderUrl` · `trackCount` ← `videos` · `year` ← parse `description`, nullable · `genre` ← null or Genius · `source` ← `'server'` · `downloaded` ← device
+`id` ← `yt:${playlistId}` · `title` ← `name` · `artist` ← `uploader` · `artistId` ← `uploaderUrl` · `trackCount` ← `videos` · `year` ← parse `description`, nullable · `genre` ← null · `source` ← `'server'` · `downloaded` ← device
 
 ### `ContentItem` / `StreamItem` → `Track` (list rows)
 
@@ -608,14 +613,13 @@ Redis or `lru-cache` — either is fine at this stage. Cache *before* normalisat
 ```
 PIPED_API_URL=http://localhost:8090
 PIPED_PROXY_URL=http://localhost:8091
-GENIUS_CLIENT_ACCESS_TOKEN=...
 LRCLIB_BASE=https://lrclib.net
 LRCLIB_USER_AGENT=Sonare/1.0 (+https://github.com/<you>/sonare)
 JWT_SECRET=...
 DATABASE_URL=postgres://...
 ```
 
-Genius keys stay server-side. Never ship them into the Neutralino or RN bundle.
+Secrets (JWT, SMTP, database) stay server-side. Never ship them into the Neutralino or RN bundle.
 
 ---
 
@@ -625,7 +629,7 @@ Genius keys stay server-side. Never ship them into the Neutralino or RN bundle.
 2. Replace `data/mock.ts` in `desktop` with a typed API client; keep the same exported names so the screens don't change.
 3. `/albums/:id`, `/artists/:id`, `/playlists/:id` — Album / Artist / Playlist screens.
 4. Auth + `/me/favourites` + play counts — Library's `PLAYS`, `Favourites`, `Most played` tabs stop being decorative.
-5. Lyrics (LRCLIB first, Genius second).
+5. Lyrics (LRCLIB).
 6. Peaks.
 7. Local library on desktop, then mobile — behind `CAPS`, so web is never touched.
 8. `/me/sync` last; it only matters once two devices exist.

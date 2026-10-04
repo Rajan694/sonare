@@ -24,7 +24,7 @@ desktop / web / mobile apps
 sonare-backend :3010 ──► Postgres (accounts, library, playlists, logs)
         │             ──► Redis (cache, rate limits)
         │             ──► Mailpit :8025 in development / Resend in production (account emails)
-        │             ──► LRCLIB, Genius (lyrics)
+        │             ──► LRCLIB (lyrics)
         ▼
 Piped API :8090 ──► piped-proxy :8091 (audio and images)
 ```
