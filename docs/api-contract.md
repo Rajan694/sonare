@@ -612,7 +612,6 @@ Redis or `lru-cache` — either is fine at this stage. Cache *before* normalisat
 
 ```
 PIPED_API_URL=http://localhost:8090
-PIPED_PROXY_URL=http://localhost:8091
 LRCLIB_BASE=https://lrclib.net
 LRCLIB_USER_AGENT=Sonare/1.0 (+https://github.com/<you>/sonare)
 JWT_SECRET=...
