@@ -142,31 +142,36 @@ Parked until the app runs cleanly. Rajan has ideas for fixing these.
 
 ### High risk
 
-- [ ] **YouTube scraping via NewPipeExtractor.** Piped scrapes YouTube, so any YouTube
-      change (signature/n-param, layout changes like `lockupViewModel`) breaks search,
-      playlists or playback. The extractor is pinned to a commit in
-      `sonare-piped-backend/build.gradle` (`NewPipeExtractor:13a655fe…`), so upstream fixes
-      only arrive when we bump it and rebuild.
-- [ ] **Bot detection (PoToken / BotGuard via `bg-helper`).** Google changes this often;
-      when it breaks, streams fail or return "Sign in to confirm you're not a bot".
-      Worse from datacenter IPs than home connections.
-      _Already seen 2026-09-24:_ some `c=VISIONOS` stream URLs serve only the first ~1 MB
-      and 403 the rest (no `pot=` token on that client). The backend relay now swaps in a
-      fresh URL on 403, but that's a workaround, not a fix.
-- [ ] **Artist pages depend on search.** The extractor returns nothing for auto-generated
-      "- Topic" artist channels, so top tracks / albums now come from YouTube Music search
-      filtered by channel id (`searchArtistCatalog` in `sonare-backend/src/routes/catalog.routes.ts`).
-- [ ] **Expiring / hardcoded YouTube URLs.**
-  - `googlevideo.com` stream URLs expire after ~6h; anything caching them longer
-    (Redis, waveform extraction in `sonare-backend/src/services/peaks.ts`) hands out dead links.
-  - Thumbnails are built by hand as `https://i.ytimg.com/vi/${id}/...` in
-    `sonare-backend/src/routes/media.routes.ts`; should come from the Piped response instead.
+- [x] ~~**YouTube scraping via NewPipeExtractor.**~~ Can't be removed, only recovered from fast.
+      `./runPiped.sh check` smoke-tests search, albums, streams and audio past 1 MB;
+      `./runPiped.sh bump [<commit>]` moves to the newest extractor (or a given commit),
+      rebuilds, checks and rolls back on failure, keeping the admin page's saved commit in
+      step. The admin Configuration page stays the place to switch commit or Piped instance.
+- [x] ~~**Bot detection (PoToken / BotGuard via `bg-helper`).**~~ `./runPiped.sh bump --bg-helper`
+      pins the newest bg-helper image with the same check and rollback; `check` reports "only
+      muxed formats" and "403 past 1 MB" separately. The backend relay still swaps in a fresh
+      URL on 403 (seen 2026-09-24 with `c=VISIONOS`).
+  - [ ] **Production network.** Datacenter IPs get flagged far more than home ones. Decide
+        when picking a host (Rajan): home connection, or a VPS with an outgoing proxy for
+        Piped (`REQWEST_PROXY` in `config.properties`).
+- [x] ~~**Artist pages depend on search.**~~ Accepted as is (2026-10-04): top tracks / albums
+      come from YouTube Music search filtered by channel id (`searchArtistCatalog` in
+      `sonare-backend/src/routes/catalog.routes.ts`), about one page of results.
+- [x] ~~**Expiring / hardcoded YouTube URLs.**~~
+  - Stream urls: the `/streams` cache is capped at the urls' own `expire` (less 5 min) as
+    well as 1 h. Waveforms only keep real peaks; a failed extraction is retried after an hour
+    instead of caching the placeholder forever (3 of 45 cached waveforms were placeholders).
+  - Images: Piped hands out images through its proxy (`http://<proxy>/…?host=i.ytimg.com`);
+    the backend now fetches them straight from Google's CDN (`upstream/ytImages.ts`), so
+    cached covers survive a proxy URL change. `i.ytimg.com/vi/<id>/…` urls are still built
+    by hand, in one place (`ytThumbUrl`); that scheme hasn't changed in 15 years.
 
 ### Medium risk
 
 - [x] ~~**`:latest` Docker images.**~~ `piped-proxy` and `bg-helper-server` are pinned to the
       digests that were running (2026-10-04); Hub's `:latest` had already moved past them.
-      To upgrade: pull `:latest`, test playback, copy the digest into `docker-compose.yml`.
+      bg-helper: `./runPiped.sh bump --bg-helper`. piped-proxy: pull `:latest`, run
+      `./runPiped.sh check`, copy the digest into `docker-compose.yml`.
 - [x] ~~**JitPack.**~~ NewPipeExtractor still comes from `jitpack.io` by commit hash, but
       `runPiped.sh` now saves each build that starts healthy to `image-backup/` (gitignored,
       ~180 MB) and loads it when the image is missing. A failed rebuild already fell back to
