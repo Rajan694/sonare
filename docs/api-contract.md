@@ -11,7 +11,7 @@ Scope: what `sonare-backend` (Node + Express) must expose, what `sonare-piped-ba
 |---|---|
 | D1 | `sonare-backend` exposes a **Sonare-native API** shaped like the UI's `Track / Album / Artist / Playlist` types (`src/data/types.ts`). |
 | D2 | `sonare-piped-backend` is a **private upstream**, not a public API. The frontends never call it directly. Express calls it server-side and normalises. |
-| D3 | Lyrics come from **Genius** (your keys) for metadata + plain lyrics, with **LRCLIB** for time-synced `.lrc`. See §4 — Genius alone cannot satisfy the Lyrics screen. |
+| D3 | Lyrics come from **LRCLIB** (synced `.lrc` and plain text). Genius was dropped on 2026-10-04: its API returns only a link, never the lyrics. See §4. |
 | D4 | **Local player / offline mode is native-only.** The web build ships without it. See §1. |
 | D5 | User data (favourites, play counts, playlists, history) lives in **Sonare's own DB**, not in Piped's. Piped's `/user/*` and `/feed` endpoints are not used. |
 
@@ -21,7 +21,7 @@ Scope: what `sonare-backend` (Node + Express) must expose, what `sonare-piped-ba
 
 Three UI targets exist today:
 
-- **web** — `sonare-frontend/other-screens` built by Vite, served in a browser
+- **web** — `sonare-frontend/desktop` built by Vite, served in a browser
 - **desktop** — the same bundle wrapped in Neutralino (`neutralino.config.json`)
 - **mobile** — `sonare-frontend/mobile`, React Native
 
@@ -82,7 +82,7 @@ Derived from the actual screens in both frontends. "L" = device-local, "S" = ser
 | As-you-type suggestions | S | `GET /search/suggestions?q=` |
 | Results, filterable: Songs / Albums / Artists / Playlists / Genres | S | `GET /search?q=&type=&cursor=` |
 | Local results interleaved, `source` badge per row | L+S | local index + above |
-| Browse categories grid (Ambient, Electronica, Post-rock, Indie, Jazz, Classical, Hip-hop, Folk) | S | `GET /genres` |
+| Browse categories grid (Popular, Top this year, Bollywood, Punjabi, Bhojpuri, Devotional, Party, Romantic, Sad, …) | S | `GET /genres` |
 | "N more results not available offline" | — | client-computed |
 
 ### Library (`screens/Library.tsx`, both)
@@ -107,7 +107,7 @@ Derived from the actual screens in both frontends. "L" = device-local, "S" = ser
 
 ### Playlist / Playlists (`screens/Playlist.tsx`, `Playlists.tsx`)
 
-`name, kind (local|synced|online), trackCount, downloadedCount, updatedAt` + tracks.
+`name, kind (local|synced|online), trackCount, downloadedCount` + tracks; `updatedAt` only on the user's own playlists.
 → `GET /me/playlists`, `GET /playlists/:id`, `GET /playlists/:id/tracks`, plus full CRUD (§6.5).
 
 ### NowPlaying (`screens/NowPlaying.tsx`, both)
@@ -205,7 +205,9 @@ The four `music_*` filters are what make Piped usable as a music backend at all.
 
 ---
 
-## 4. Lyrics — Genius is not enough on its own
+## 4. Lyrics — LRCLIB (Genius was dropped)
+
+_Genius was removed on 2026-10-04. §4.1–4.2 are kept as the reason it isn't used._
 
 ### 4.1 Genius API (`https://api.genius.com`, `Authorization: Bearer <CLIENT_ACCESS_TOKEN>`)
 
@@ -243,11 +245,13 @@ No key, no auth. Send a descriptive `User-Agent` (e.g. `Sonare/1.0 (https://gith
 1. embedded tags on the local file  (USLT / SYLT / LYRICS)  → synced or plain
 2. LRCLIB /api/get  (exact: track+artist+album+duration)    → synced
 3. LRCLIB /api/search (fuzzy: track+artist)                 → synced
-4. Genius /search → best hit → plain lyrics                 → plain, attributed
-5. user-imported .lrc / .txt                                → synced or plain
+4. user-imported .lrc / .txt                                → synced or plain
 ```
 
 Response always carries `provider` and `synced` so the UI can render the badge honestly.
+If LRCLIB doesn't answer (error, timeout after 8 s), the backend answers **502
+`LYRICS_UNAVAILABLE`** instead of a 404 and caches nothing, so the apps can say "try again"
+rather than "no lyrics"; found lyrics stay cached in Redis, so only unseen songs are affected.
 
 ---
 
@@ -277,7 +281,7 @@ Response always carries `provider` and `synced` so the UI can render the badge h
 |---|---|---|
 | `Track.album` / `albumId` | not on `StreamItem`; only via the album playlist that contains it | needs a reverse index or a second call |
 | `Album.year` | `Playlist.description` / YT Music metadata | often missing → nullable |
-| `Album.genre` | not exposed | derive from Genius or leave null |
+| `Album.genre` | not exposed | null |
 | `Album.trackCount` | `Playlist.videos` | direct |
 | `Artist.monthlyListeners` | `Channel.subscriberCount` | **not the same number** — either relabel the UI to "subscribers" or drop it |
 | `Artist.albumCount` | count of items in the Albums tab | extra call |
@@ -293,7 +297,7 @@ Response always carries `provider` and `synced` so the UI can render the badge h
 
 | Sonare need | Owner |
 |---|---|
-| Lyrics (synced + plain + offset + import) | Express → LRCLIB / Genius |
+| Lyrics (synced + plain + offset + import) | Express → LRCLIB |
 | Waveform peaks | Express (§8.4) |
 | Favourites (tracks / albums / artists) | Express + DB |
 | Play counts & history | Express + DB |
@@ -320,31 +324,53 @@ That is **~35 of Piped's 56 routes dead weight** for a music client. Worth knowi
 
 Base: `/api/v1`. JSON. Bearer auth (Sonare's own JWT) on everything under `/me`.
 
+**Validation.** Every request body and query string is checked against a schema
+(`sonare-backend/src/validation.ts`). A request that doesn't fit answers
+`400 { error: { code: 'BAD_REQUEST', message } }`, where `message` is the first problem found
+(e.g. `Playlist name must be at most 100 characters`), and nothing is written. Unknown fields
+are ignored. Limits are listed with each route below.
+
+**Health.** `GET /healthz` → `{ ok, version, db, redis, piped, ffmpeg }` where `db` / `redis` /
+`piped` are `'up' | 'down'`, `ffmpeg` is `'found' | 'missing'` (missing = placeholder
+waveforms) and `version` is the backend's package version. It answers 200
+when the database is up and **503** (with `ok: false`) when it is down; Redis is only a cache
+and Piped outages are reported per request, so neither changes the status code. The
+production image's `HEALTHCHECK` uses it.
+
 ### 6.1 Auth
 
 | Method | Path | Body / params |
 |---|---|---|
-| POST | `/auth/register` | `{ email, password, displayName }` |
+| POST | `/auth/register` | `{ email, password (8–128), displayName }` → 201 `{ accessToken, refreshToken, user }`; emails a verify link |
 | POST | `/auth/login` | `{ email, password }` → `{ accessToken, refreshToken, user }` |
 | POST | `/auth/refresh` | `{ refreshToken }` |
 | POST | `/auth/logout` | — |
-| GET | `/me` | → `{ id, displayName, email, createdAt }` |
+| POST | `/auth/verify-email` | `{ token }` → `{ ok: true }`; 400 `INVALID_TOKEN` when used or expired (24 h) |
+| POST | `/auth/resend-verification` | Bearer → `{ ok: true }` or `{ ok: true, alreadyVerified: true }`; 3 per hour |
+| POST | `/auth/forgot-password` | `{ email }` → always `{ ok: true }`; emails a reset link if the account exists |
+| POST | `/auth/reset-password` | `{ token, password }` → `{ ok: true }`; signs out every device; 400 `INVALID_TOKEN` when used or expired (1 h) |
+| GET | `/me` | → `{ id, displayName, email, emailVerified, createdAt }` |
+
+`user` is `{ id, email, displayName, emailVerified, createdAt }`. Emails are lowercased. Rate-limited
+routes answer 429 `RATE_LIMITED` with `Retry-After`. Email links point at `APP_URL`
+(`/verify-email?token=…`, `/reset-password?token=…`), which the web app serves.
 
 ### 6.2 Catalog (upstream: Piped)
 
 | Method | Path | Params | Upstream |
 |---|---|---|---|
-| GET | `/search` | `q`, `type=songs\|albums\|artists\|playlists\|all`, `cursor`, `limit` | `/search`, `/nextpage/search` |
-| GET | `/search/suggestions` | `q` | `/suggestions` |
-| GET | `/trending` | `region`, `limit` | `/trending` |
-| GET | `/genres` | — | static |
+| GET | `/healthz` | — | `/healthcheck` (see above) |
+| GET | `/search` | `q` (1–200 chars), `type=songs\|albums\|artists\|playlists\|all` (default `all`; anything else is 400), `cursor` | `/search`, `/nextpage/search` |
+| GET | `/search/suggestions` | `q` (1–200 chars) | `/suggestions` |
+| GET | `/trending` | `region` (two-letter country code, default `IN`), `limit` (1–100, default 50) | `/trending` |
+| GET | `/genres` | — | static: `[{ id, name, query }]`; opening a category searches for `query` |
 | GET | `/tracks/:id` | — | `/streams/:videoId` |
 | GET | `/albums/:id` | — | `/playlists/:id` |
 | GET | `/albums/:id/tracks` | `cursor` | `/playlists/:id`, `/nextpage/playlists/:id` |
 | GET | `/artists/:id` | — | `/channel/:id` |
-| GET | `/artists/:id/top-tracks` | `limit` | `/channel/:id` → `relatedStreams` |
+| GET | `/artists/:id/top-tracks` | `limit` (1–100, default 20) | `/channel/:id` → `relatedStreams` |
 | GET | `/artists/:id/albums` | `cursor` | `/channels/tabs?data=` |
-| GET | `/playlists/:id` | — | `/playlists/:id` |
+| GET | `/playlists/:id` | — → `{ id, name, kind: 'online', trackCount, downloadedCount }` (no `updatedAt`: Piped has no last-modified date) | `/playlists/:id` |
 | GET | `/playlists/:id/tracks` | `cursor` | `/nextpage/playlists/:id` |
 
 When Piped can't be reached (connection refused, DNS failure), these routes and
@@ -367,34 +393,37 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 
 | Method | Path | Body / params | Notes |
 |---|---|---|---|
-| GET | `/tracks/:id/lyrics` | `prefer=synced\|plain` | → `{ synced: boolean, provider: 'lrclib'\|'genius'\|'tags'\|'user', offsetMs, lines: [{atMs,text}], plain?: string, attribution?: { name, url } }` |
-| GET | `/lyrics/search` | `track`, `artist`, `album`, `durationSec` | manual picker for the "Import lyrics" button |
-| POST | `/tracks/:id/lyrics` | `{ lrc }` or `{ plain }` | user import |
-| PATCH | `/tracks/:id/lyrics/offset` | `{ offsetMs }` | the `Offset -0.3s` chip |
+| GET | `/tracks/:id/lyrics` | `prefer=synced\|plain`, `script=original\|latin\|devanagari\|gurmukhi\|arabic\|bengali\|gujarati\|tamil\|telugu` (anything else is 400; a script picks the LRCLIB version written in it, else the original) | → `{ synced: boolean, provider: 'lrclib'\|'tags'\|'user', offsetMs, lines: [{atMs,text}], plain?: string }`; 404 = no lyrics, **502 `LYRICS_UNAVAILABLE`** = LRCLIB didn't answer (not cached) |
+| GET | `/lyrics/search` | `track` (required, ≤ 200), `artist`, `album` | manual picker for the "Import lyrics" button; 502 `LYRICS_UNAVAILABLE` when LRCLIB is down |
+| POST | `/tracks/:id/lyrics` | `{ lrc }` or `{ plain }` (at least one, ≤ 100 000 chars each) | user import |
+| PATCH | `/tracks/:id/lyrics/offset` | `{ offsetMs }` (whole number, ±600 000) | the `Offset -0.3s` chip |
 | DELETE | `/tracks/:id/lyrics` | — | revert to auto |
 
 ### 6.5 User library & playlists
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/me/library/tracks` | `sort=addedAt\|playCount\|title`, `order`, `source=all\|server`, `cursor` |
-| GET | `/me/library/albums` · `/artists` · `/genres` | Library tabs |
+| GET | `/me/library/tracks` | `sort=addedAt\|playCount\|title`, `order=asc\|desc` |
+| GET | `/me/library/albums` · `/artists` · `/genres` | Library tabs. `/artists`: followed artists, then the artists of liked or playlisted songs (`following: false`, `songCount`) |
 | GET | `/me/favourites/tracks` | the `Favourites` tab |
 | PUT / DELETE | `/me/favourites/tracks/:id` | heart toggle |
 | PUT / DELETE | `/me/favourites/albums/:id` | album heart |
 | PUT / DELETE | `/me/following/artists/:id` | Follow / Following |
-| GET | `/me/recently-played` | `limit` |
-| GET | `/me/most-played` | `limit`, `window=30d` |
-| GET | `/me/new-releases` | Home banner |
-| GET | `/discover/made-for-you` | Home carousel |
+| GET | `/me/recently-played` | `limit` (1–100, default 10) |
+| GET | `/me/most-played` | `limit` (1–100, default 20), `window=30d\|365d` |
+| GET | `/me/new-releases` | Home banner (placeholder: always empty for now) |
+| GET | `/discover/made-for-you` | Home carousel (placeholder: always empty for now) |
 | GET | `/me/playlists` | → `Playlist[]` with `kind`, `trackCount` |
-| POST | `/me/playlists` | `{ name, kind }` |
+| POST | `/me/playlists` | `{ name (1–100), kind?, description? (≤ 500) }`; `kind` is `local\|synced\|online` (default `online`; legacy `offline` is accepted) |
 | GET | `/me/playlists/:id` | |
-| PATCH | `/me/playlists/:id` | `{ name, description }` |
+| PATCH | `/me/playlists/:id` | `{ name?, description? }`, same limits |
 | DELETE | `/me/playlists/:id` | |
-| POST | `/me/playlists/:id/tracks` | `{ trackIds[] }` |
-| DELETE | `/me/playlists/:id/tracks` | `{ index }` or `{ trackIds[] }` |
-| PATCH | `/me/playlists/:id/tracks/order` | `{ from, to }` |
+| POST | `/me/playlists/:id/tracks` | `{ trackIds[] }` (1–200-char ids, at most 500) |
+| DELETE | `/me/playlists/:id/tracks` | `{ index }` (≥ 0) or `{ trackIds[] }` |
+| PATCH | `/me/playlists/:id/tracks/order` | `{ from, to }` (whole numbers ≥ 0) |
+| GET / PUT | `/me/settings` | PUT `{ eqPreset?, gapless?, normalization?, stayOffline?, streamQuality?, downloadQuality?, downloadFormat? }`: only the fields sent change. Qualities are `low\|normal\|high` (`downloadQuality: 'lossless'` is stored as `high`), `downloadFormat` is `opus\|m4a`; any other value is 400 (it used to be ignored) |
+| GET / PUT | `/me/player-state` | PUT `{ trackRef?, positionMs?, queue?, index?, shuffle?, repeat? }`; `trackRef` is `{ kind: 'server', id }` or `{ kind: 'local', fingerprint }`, `repeat` is `off\|all\|one` |
+| POST | `/me/sync` | `{ plays?: [{ trackRef, at, ms? }], favourites?: [{ trackRef, at? }] }` (≤ 1000 each); one bad entry rejects the whole request and nothing is recorded |
 
 ### 6.6 Device-local API — **not HTTP**
 
@@ -467,7 +496,7 @@ Web ships a stub where `localLibrary` throws `UnsupportedOnWeb` and `CAPS.localL
 
 ### `Playlist` → `Album`
 
-`id` ← `yt:${playlistId}` · `title` ← `name` · `artist` ← `uploader` · `artistId` ← `uploaderUrl` · `trackCount` ← `videos` · `year` ← parse `description`, nullable · `genre` ← null or Genius · `source` ← `'server'` · `downloaded` ← device
+`id` ← `yt:${playlistId}` · `title` ← `name` · `artist` ← `uploader` · `artistId` ← `uploaderUrl` · `trackCount` ← `videos` · `year` ← parse `description`, nullable · `genre` ← null · `source` ← `'server'` · `downloaded` ← device
 
 ### `ContentItem` / `StreamItem` → `Track` (list rows)
 
@@ -583,25 +612,23 @@ Redis or `lru-cache` — either is fine at this stage. Cache *before* normalisat
 
 ```
 PIPED_API_URL=http://localhost:8090
-PIPED_PROXY_URL=http://localhost:8091
-GENIUS_CLIENT_ACCESS_TOKEN=...
 LRCLIB_BASE=https://lrclib.net
 LRCLIB_USER_AGENT=Sonare/1.0 (+https://github.com/<you>/sonare)
 JWT_SECRET=...
 DATABASE_URL=postgres://...
 ```
 
-Genius keys stay server-side. Never ship them into the Neutralino or RN bundle.
+Secrets (JWT, SMTP, database) stay server-side. Never ship them into the Neutralino or RN bundle.
 
 ---
 
 ## 9. Build order
 
 1. **`/search`, `/tracks/:id`, `/tracks/:id/stream`** over Piped — one vertical slice makes Search + NowPlaying real on all three platforms.
-2. Replace `data/mock.ts` in `other-screens` with a typed API client; keep the same exported names so the screens don't change.
+2. Replace `data/mock.ts` in `desktop` with a typed API client; keep the same exported names so the screens don't change.
 3. `/albums/:id`, `/artists/:id`, `/playlists/:id` — Album / Artist / Playlist screens.
 4. Auth + `/me/favourites` + play counts — Library's `PLAYS`, `Favourites`, `Most played` tabs stop being decorative.
-5. Lyrics (LRCLIB first, Genius second).
+5. Lyrics (LRCLIB).
 6. Peaks.
 7. Local library on desktop, then mobile — behind `CAPS`, so web is never touched.
 8. `/me/sync` last; it only matters once two devices exist.

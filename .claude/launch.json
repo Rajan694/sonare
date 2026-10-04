@@ -6,7 +6,7 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "--prefix",
-        "sonare-frontend/other-screens",
+        "sonare-frontend/desktop",
         "run",
         "dev"
       ],
@@ -15,6 +15,18 @@
     {
       "name": "sonare-backend",
       "url": "http://127.0.0.1:3010",
+      "port": 3010
+    },
+    {
+      "name": "sonare-metro",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "sonare-frontend/mobile", "start", "--", "--port", "8095"],
+      "port": 8095
+    },
+    {
+      "name": "sonare-backend-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "sonare-backend", "run", "dev"],
       "port": 3010
     }
   ]
