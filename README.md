@@ -43,7 +43,7 @@ cd sonare
 ./run.sh                     # Piped, backend and the web app, each in its own terminal
 ./run.sh fe --fe=linux       # the desktop window instead of the browser
 ./run.sh fe --fe=mobile      # Metro + the Android app
-./build.sh linux windows --env=prod   # installable builds; also android, web, all
+./build.sh prod linux windows        # installable builds (dev|prod, any platforms, [version])
 ```
 
 `./build.sh` makes the installable apps into `sonare-frontend/dist/releases/` (see
