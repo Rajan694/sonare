@@ -20,14 +20,40 @@
     {
       "name": "sonare-metro",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "sonare-frontend/mobile", "start", "--", "--port", "8095"],
+      "runtimeArgs": [
+        "--prefix",
+        "sonare-frontend/mobile",
+        "start",
+        "--",
+        "--port",
+        "8095"
+      ],
       "port": 8095
     },
     {
       "name": "sonare-backend-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "sonare-backend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "sonare-backend",
+        "run",
+        "dev"
+      ],
       "port": 3010
+    },
+    {
+      "name": "sonare-web-plain",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "SONARE_VITE_PORT=5185",
+        "SONARE_NL_PORT=9",
+        "npm",
+        "--prefix",
+        "sonare-frontend/desktop",
+        "run",
+        "dev"
+      ],
+      "port": 5185
     }
   ]
 }

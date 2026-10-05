@@ -43,7 +43,12 @@ cd sonare
 ./run.sh                     # Piped, backend and the web app, each in its own terminal
 ./run.sh fe --fe=linux       # the desktop window instead of the browser
 ./run.sh fe --fe=mobile      # Metro + the Android app
+./build.sh linux windows --env=prod   # installable builds; also android, web, all
 ```
+
+`./build.sh` makes the installable apps into `sonare-frontend/dist/releases/` (see
+[sonare-frontend/README.md](sonare-frontend/README.md#build-the-apps)); upload them on
+`/admin` → Releases and the web app offers them under Settings → About.
 
 `./run.sh piped|be|fe` starts one part; `--here` keeps it in the current terminal. Ports:
 Piped 8090, proxy 8091, backend 3010, web 5183, desktop window dev server 5184,

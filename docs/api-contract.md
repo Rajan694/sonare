@@ -468,6 +468,18 @@ Web ships a stub where `localLibrary` throws `UnsupportedOnWeb` and `CAPS.localL
 
 `TrackRef` is `{ kind: 'server', id }` or `{ kind: 'local', fingerprint }` — see §8.3.
 
+### 6.8 App releases (Settings → About)
+
+App builds uploaded on the admin page and offered for download in the web app (not in the installed apps).
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/releases` | Public. `{ items: AppRelease[] }`, the newest upload of each platform + format. `AppRelease` = `{ id, platform: android\|linux\|windows, format, version, fileName, sizeBytes, sha256, notes, uploadedAt }` |
+| GET | `/releases/:id/download` | Public. The file as an attachment (Range supported); counts a download. 404 unknown, 410 if the file is missing on disk |
+| GET | `/admin/releases` | Admin. Every upload with `downloads`, plus `accepts`: the file extensions each platform takes |
+| POST | `/admin/releases?platform=&version=&fileName=&notes=` | Admin. The file is the raw body (`application/octet-stream`). Format comes from the extension: android `.apk`; linux `.AppImage .deb .rpm .tar.gz .zip`; windows `.exe .msi .zip`. 201 created; 200 when the same platform + format + version replaces an earlier file; 413 over `RELEASE_MAX_MB` |
+| DELETE | `/admin/releases/:id` | Admin. Removes the row and the file |
+
 ---
 
 ## 7. Field mapping (Piped → Sonare)
