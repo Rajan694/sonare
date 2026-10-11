@@ -407,11 +407,11 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 | GET | `/me/library/tracks` | `sort=addedAt\|playCount\|title`, `order=asc\|desc` |
 | GET | `/me/library/albums` · `/artists` · `/genres` | Library tabs. `/artists`: followed artists, then the artists of liked or playlisted songs (`following: false`, `songCount`) |
 | GET | `/me/favourites/tracks` | the `Favourites` tab |
-| PUT / DELETE | `/me/favourites/tracks/:id` | heart toggle |
-| PUT / DELETE | `/me/favourites/albums/:id` | album heart |
-| PUT / DELETE | `/me/following/artists/:id` | Follow / Following |
+| PUT / DELETE | `/me/favourites/tracks/:id` | heart toggle. PUT may send `{ meta }` (see below) |
+| PUT / DELETE | `/me/favourites/albums/:id` | album heart. PUT may send `{ meta }` |
+| PUT / DELETE | `/me/following/artists/:id` | Follow / Following. PUT may send `{ meta }` |
 | GET | `/me/recently-played` | `limit` (1–100, default 10) |
-| GET | `/me/most-played` | `limit` (1–100, default 20), `window=30d\|365d` |
+| GET | `/me/most-played` | `limit` (1–100, default 20), `window=30d\|365d`. Each song shows its newest play `meta` |
 | GET | `/me/new-releases` | Home banner (placeholder: always empty for now) |
 | GET | `/discover/made-for-you` | Home carousel (placeholder: always empty for now) |
 | GET | `/me/playlists` | → `Playlist[]` with `kind`, `trackCount` |
@@ -419,12 +419,22 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 | GET | `/me/playlists/:id` | |
 | PATCH | `/me/playlists/:id` | `{ name?, description? }`, same limits |
 | DELETE | `/me/playlists/:id` | |
-| POST | `/me/playlists/:id/tracks` | `{ trackIds[] }` (1–200-char ids, at most 500) |
+| POST | `/me/playlists/:id/tracks` | `{ trackIds[], metas? }` (1–200-char ids, at most 500; `metas` maps a track id to its `meta`) |
 | DELETE | `/me/playlists/:id/tracks` | `{ index }` (≥ 0) or `{ trackIds[] }` |
 | PATCH | `/me/playlists/:id/tracks/order` | `{ from, to }` (whole numbers ≥ 0) |
 | GET / PUT | `/me/settings` | PUT `{ eqPreset?, gapless?, normalization?, stayOffline?, streamQuality?, downloadQuality?, downloadFormat? }`: only the fields sent change. Qualities are `low\|normal\|high` (`downloadQuality: 'lossless'` is stored as `high`), `downloadFormat` is `opus\|m4a`; any other value is 400 (it used to be ignored) |
 | GET / PUT | `/me/player-state` | PUT `{ trackRef?, positionMs?, queue?, index?, shuffle?, repeat? }`; `trackRef` is `{ kind: 'server', id }` or `{ kind: 'local', fingerprint }`, `repeat` is `off\|all\|one` |
-| POST | `/me/sync` | `{ plays?: [{ trackRef, at, ms? }], favourites?: [{ trackRef, at? }] }` (≤ 1000 each); one bad entry rejects the whole request and nothing is recorded |
+| POST | `/me/sync` | `{ plays?: [{ trackRef, at, ms?, meta? }], favourites?: [{ trackRef, at?, meta? }] }` (≤ 1000 each); one bad entry rejects the whole request and nothing is recorded |
+
+**Metadata snapshots (`meta`).** The apps find songs, albums and artists on YouTube themselves
+([IN-APP-YOUTUBE.md](IN-APP-YOUTUBE.md)), so the backend may never have looked one up. Saving
+or playing one sends what the app knows about it, and lists read the row's snapshot first, then
+`catalog_items` (filled from Piped results), then Piped. Track `{ title, artist, artistId,
+album?, albumId?, durationMs, thumbnail? }`; album `{ title, artist, artistId, year?, trackCount?,
+thumbnail? }` (a saved YouTube playlist uses this too); artist `{ name, thumbnail?,
+monthlyListeners? }`. Ids are `yt:` ids or empty; thumbnails are `/api/v1/…` paths or https
+YouTube image hosts. A snapshot that doesn't fit is dropped, never an error. Only YouTube items
+get one.
 
 ### 6.6 Device-local API — **not HTTP**
 

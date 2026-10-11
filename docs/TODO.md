@@ -156,10 +156,12 @@ Parked until the app runs cleanly. Rajan has ideas for fixing these.
         machine). If YouTube blocks the VPS IP: a new IP or IPv6 first, then an outgoing
         residential proxy for Piped and piped-proxy (`REQWEST_PROXY`; stream urls are bound to
         the IP that fetched them), then fetching inside the apps (below).
-  - [ ] **Long term: fetch from YouTube inside the apps.** The Android app could use
-        NewPipeExtractor and the desktop app youtubei.js, so each user plays from their own
-        home IP. This is the most block-resistant setup, but it's a big rewrite. The web build
-        can't do it because browsers block cross-site requests (CORS).
+  - [x] ~~**Long term: fetch from YouTube inside the apps.**~~ Done 2026-10-11
+        ([IN-APP-YOUTUBE.md](IN-APP-YOUTUBE.md)): the Android app and the desktop window both
+        use youtubei.js (VISIONOS client), so each user plays from their own home IP. The
+        backend's Piped is the fallback, at the URL set on the admin page, which can also
+        change the client order or turn in-app fetching off. Waveforms are filled in on the
+        device as songs play. The web build can't do it (CORS) and keeps using the backend.
     - Web then keeps the server's Piped, for web users only (far less traffic from the VPS
       IP; a residential proxy only pays for web plays).
     - [ ] Maybe later: a small "Sonare helper" browser extension. Extensions can make

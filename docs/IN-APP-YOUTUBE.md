@@ -157,11 +157,11 @@ Consequences:
 | S2 | frontend/shared | `youtubeiSource`: youtubei.js → Piped shapes, parity script against live Piped (done: album tracks match id for id; joined fields ~100 %) | opencode B |
 | B2 | backend | Stored metadata + hydration order + lyrics params (done) | opencode C |
 | B3 | backend | Peaks upload, drop ffmpeg extraction (done) | opencode A |
-| D1 | desktop | curl transport, cache-file playback, local-first api with backend fallback | opencode |
-| A1 | mobile | Hermes check, youtubei.js wiring, local-first api, ExoPlayer `Range`, downloads | opencode |
-| W1 | desktop + mobile | On-device waveforms + upload | opencode |
-| M1 | desktop + mobile | Apps send metadata snapshots on favourite, playlist add and play sync | opencode |
-| Z | root | TODO.md, api-contract.md, release notes | Claude |
+| D1 | desktop | curl transport, cache-file playback, local-first api with backend fallback (done; limited urls are probed and the session switched, a 403 refreshes once) | opencode D, Claude |
+| A1 | mobile | Hermes check, youtubei.js wiring, local-first api, ExoPlayer `Range`, downloads (done; youtubei.js runs over an XHR `fetch`, since RN's `fetch` waits on timers that stop in the background) | opencode E, Claude |
+| W1 | desktop + mobile | On-device waveforms + upload (done: desktop samples a pre-EQ `AnalyserNode`; Android's audio processor sends the level with each progress event) | Claude |
+| M1 | desktop + mobile | Apps send metadata snapshots on favourite, playlist add and play sync (done; backend stores play snapshots too) | Claude |
+| Z | root | TODO.md, api-contract.md (done); release notes with the next release | Claude |
 
 Claude reviews every diff, runs typecheck/tests/builds, checks behavior in the running app,
 and commits each phase on `generic-branch` once it passes.
