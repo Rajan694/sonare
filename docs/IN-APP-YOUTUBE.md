@@ -150,13 +150,14 @@ Consequences:
 | B1 | backend + desktop admin | Admin Piped URL setting (done) | opencode A |
 | S1 | frontend/shared | `YouTubeSource` + `shared/catalog` port with fixture tests (done) | opencode B |
 | D0 | desktop | Spike (done, see results above) | Claude |
-| B1b | backend + admin | YouTube client order + in-app kill switch + public `GET /app-config` | opencode A |
-| S2 | frontend/shared | `youtubeiSource`: youtubei.js → Piped shapes, parity script against live Piped | opencode B |
-| B2 | backend | Stored metadata + hydration order + lyrics params | opencode C |
-| B3 | backend | Peaks upload, drop ffmpeg extraction | opencode |
+| B1b | backend + admin | YouTube client order + in-app kill switch + public `GET /app-config` (done) | opencode A |
+| S2 | frontend/shared | `youtubeiSource`: youtubei.js → Piped shapes, parity script against live Piped (done: album tracks match id for id; joined fields ~100 %) | opencode B |
+| B2 | backend | Stored metadata + hydration order + lyrics params (done) | opencode C |
+| B3 | backend | Peaks upload, drop ffmpeg extraction (done) | opencode A |
 | D1 | desktop | curl transport, cache-file playback, local-first api with backend fallback | opencode |
 | A1 | mobile | Hermes check, youtubei.js wiring, local-first api, ExoPlayer `Range`, downloads | opencode |
-| W1 | desktop + mobile | On-device waveforms + upload; snapshots on save/play | opencode |
+| W1 | desktop + mobile | On-device waveforms + upload | opencode |
+| M1 | desktop + mobile | Apps send metadata snapshots on favourite, playlist add and play sync | opencode |
 | Z | root | TODO.md, api-contract.md, release notes | Claude |
 
 Claude reviews every diff, runs typecheck/tests/builds, checks behavior in the running app,
