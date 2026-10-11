@@ -78,9 +78,12 @@ types (`shared/youtube/innertubeLike.ts`), so it still imports nothing.
    - Hydration order: the user's snapshot → `catalog_items` → Piped (then stored).
 3. **Lyrics** accept `title`, `artist` and `durationMs` from the client, so they don't need
    `/streams` to look the song up.
-4. **Peaks.** `PUT /tracks/:id/peaks` (signed in, validated: N bars, values 0–1, kept only if
-   none are cached). `GET` returns cached peaks or `{ peaks: null }`. Server-side ffmpeg
-   extraction is removed.
+4. **Peaks.** `PUT /tracks/:id/peaks` (signed in, `yt:` ids only, exactly 150 values in 0–1,
+   first upload wins, rate-limited). `GET` returns the uploaded waveform resampled to `bars`,
+   or the shared deterministic placeholder with `placeholder: true` (released apps read only
+   `peaks`, so it stays an array). Server-side ffmpeg extraction is removed.
+5. **App config.** Public `GET /app-config` → `{ inAppYoutube, youtubeClients, updatedAt }`,
+   edited on the admin Settings page.
 
 ## App changes
 
