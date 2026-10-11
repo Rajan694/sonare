@@ -38,7 +38,7 @@ Three UI targets exist today:
 | Download-for-offline | ⚠️ saves files (see §8.7), no offline playback | ✅ | ✅ Android |
 | Equalizer | ⚠️ Web Audio `BiquadFilter` chain only | ✅ native | ✅ native |
 | Output device / Cast | ❌ | ⚠️ limited | ✅ |
-| Waveform peaks | ✅ (server-computed) | ✅ | ✅ |
+| Waveform peaks | ✅ (computed on device, shared via cache) | ✅ | ✅ |
 
 **Consequence for the API.** Everything in §6.6 (local library) is a **device-local API, not HTTP**. Express must not own folder scanning, tag reading, or EQ. What Express *does* own is the **merge**: playlists, favourites and play counts that span local and server tracks. Those endpoints accept local-track fingerprints (§8.3).
 
@@ -385,7 +385,8 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 | Method | Path | Params | Notes |
 |---|---|---|---|
 | GET | `/tracks/:id/stream` | `quality=auto\|low\|normal\|high`, `format=opus\|m4a` | → `{ url, mimeType, codec, bitrateKbps, contentLength, expiresAt, muxed, itag }`. `contentLength` is 0 when unknown. `low` / `auto` / `high` are bitrate ceilings (64 kbps / 160 kbps / none); `normal` is the middle tier of the format (Opus ≈75 kbps; AAC has two tiers, so the 128 kbps one). An explicit `format` is honoured at any bitrate before the other format is considered. |
-| GET | `/tracks/:id/peaks` | `bars=150` | → `{ peaks: number[] }` |
+| GET | `/tracks/:id/peaks` | `bars=150` (8–600, default 150) | → `{ peaks: number[], placeholder: boolean }`. Cached canonical waveform (key `peaks:v2:<rawId>`) resampled to N bars, or deterministic placeholder. Never calls Piped/ffmpeg. |
+| PUT | `/tracks/:id/peaks` | `{ peaks: number[] }` (150 bars) | Signed-in users. Stored once (first upload wins) → 201 `{ stored: true }`, or 200 `{ stored: false }`. Rate-limited. |
 | GET | `/tracks/:id/artwork` | `size=64\|140\|300\|640` | 302 or proxied bytes |
 | GET | `/stream/:token` | — | optional: Express proxies the audio itself, Range-aware (§8.2) |
 
@@ -596,13 +597,11 @@ Plays, favourites and playlist membership key off `TrackRef`. When a local track
 
 ### 8.4 Waveform peaks
 
-The `NowPlaying` waveform wants 150 bars. Three options, in order of cost:
+The `NowPlaying` waveform displays canonical 150 bars (clients can request 8–600 bars via `?bars=N`).
 
-1. **Local files** — compute on device during scan, cache in the local index. Free.
-2. **Server tracks** — Express decodes the first ~N seconds with `ffmpeg`/`audiowaveform`, caches `{trackId → peaks}` permanently. Worth it; the array is ~150 bytes.
-3. **Fallback** — synthesise from the envelope of a short probe, or render a flat placeholder.
-
-Do *not* try to compute peaks in the browser from a streamed URL: CORS plus full-file decode makes it unusable.
+1. **On-device computation** — apps compute the real waveform on device by tapping the decoded PCM audio during playback (no extra download or second decode).
+2. **First upload wins** — once a track has been played and all canonical 150 bars are computed, the client uploads via `PUT /tracks/:id/peaks`. Stored permanently in Redis under `peaks:v2:<rawId>`.
+3. **Fallback placeholder** — before real waveform is uploaded, `GET /tracks/:id/peaks` returns a deterministic placeholder (`placeholderPeaks(trackId, bars)`, values 0.3–1) with `{ placeholder: true }`. The server never downloads audio or invokes ffmpeg for waveforms.
 
 ### 8.5 Caching
 
@@ -616,7 +615,7 @@ Do *not* try to compute peaks in the browser from a streamed URL: CORS plus full
 | `/streams` (metadata only) | 1 h |
 | stream URL | **do not cache past `expiresAt`** |
 | lyrics | permanent (with a manual refresh route) |
-| peaks | permanent |
+| peaks | permanent (`peaks:v2:<rawId>`) |
 
 Redis or `lru-cache` — either is fine at this stage. Cache *before* normalisation so a shape change doesn't invalidate everything.
 
