@@ -151,9 +151,20 @@ Parked until the app runs cleanly. Rajan has ideas for fixing these.
       pins the newest bg-helper image with the same check and rollback; `check` reports "only
       muxed formats" and "403 past 1 MB" separately. The backend relay still swaps in a fresh
       URL on 403 (seen 2026-09-24 with `c=VISIONOS`).
-  - [ ] **Production network.** Datacenter IPs get flagged far more than home ones. Decide
-        when picking a host (Rajan): home connection, or a VPS with an outgoing proxy for
-        Piped (`REQWEST_PROXY` in `config.properties`).
+  - [ ] **Production network.** Datacenter IPs get flagged far more than home ones. Decided
+        2026-10-07: backend and Piped both on one VPS first (Piped can't run on Rajan's own
+        machine). If YouTube blocks the VPS IP: a new IP or IPv6 first, then an outgoing
+        residential proxy for Piped and piped-proxy (`REQWEST_PROXY`; stream urls are bound to
+        the IP that fetched them), then fetching inside the apps (below).
+  - [ ] **Long term: fetch from YouTube inside the apps.** The Android app could use
+        NewPipeExtractor and the desktop app youtubei.js, so each user plays from their own
+        home IP. This is the most block-resistant setup, but it's a big rewrite. The web build
+        can't do it because browsers block cross-site requests (CORS).
+    - Web then keeps the server's Piped, for web users only (far less traffic from the VPS
+      IP; a residential proxy only pays for web plays).
+    - [ ] Maybe later: a small "Sonare helper" browser extension. Extensions can make
+          cross-site requests, so it could fetch from YouTube for the web app from the
+          user's own IP. One more thing to build and publish, and few users would install it.
 - [x] ~~**Artist pages depend on search.**~~ Accepted as is (2026-10-04): top tracks / albums
       come from YouTube Music search filtered by channel id (`searchArtistCatalog` in
       `sonare-backend/src/routes/catalog.routes.ts`), about one page of results.

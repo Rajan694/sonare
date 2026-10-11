@@ -14,7 +14,7 @@ $ScriptDir = $PSScriptRoot
 $OnWindows = $env:OS -eq 'Windows_NT'
 
 function Show-Usage {
-    Write-Host "Usage: .\run.ps1 [all|piped|be|fe] [--here] [--fe=web|mobile|linux]"
+    Write-Host "Usage: .\run.ps1 [all|piped|be|fe] [--here] [--fe=web|mobile|linux] [--emulator[=<avd>]|--device=<serial>]"
     Write-Host ""
     Write-Host "  all     Piped, backend and frontend, each in its own window (default)"
     Write-Host "  piped   Piped backend only (docker)"
@@ -25,6 +25,9 @@ function Show-Usage {
     Write-Host "                   Only valid with a single target."
     Write-Host ""
     Write-Host "  --fe=<target>    FE to build: web (default), mobile, or linux."
+    Write-Host "  --emulator[=<avd>]  mobile: install on the emulator even with a phone plugged in,"
+    Write-Host "                   booting <avd> (default: the first one) if none is running."
+    Write-Host "  --device=<serial>   mobile: install on this adb serial (see 'adb devices')."
     Write-Host ""
     Write-Host "Ports: piped 8090, proxy 8091, backend 3010 (see .env), vite 5183 (web) / 5184 (linux)."
     Write-Host "The web and linux frontends use different ports, so both can run at once."
@@ -37,13 +40,21 @@ function Show-Usage {
 $Target = 'all'
 $Here = $false
 $FE = 'web'
+$FEArgs = @()
 foreach ($arg in $args) {
     $arg = "$arg"
     if ($arg -in 'all', 'piped', 'be', 'fe') { $Target = $arg }
     elseif ($arg -eq '--here') { $Here = $true }
     elseif ($arg -like '--fe=*') { $FE = $arg.Substring('--fe='.Length) }
+    elseif ($arg -eq '--emulator' -or $arg -like '--emulator=*' -or $arg -like '--device=*') { $FEArgs += $arg }
     else { Show-Usage }
 }
+
+if ($FEArgs.Count -gt 0 -and $FE -ne 'mobile') {
+    Write-Host "--emulator and --device only apply to --fe=mobile"
+    exit 1
+}
+$FEArgLine = ($FEArgs | ForEach-Object { " $_" }) -join ''
 
 if ($Here -and $Target -eq 'all') {
     Write-Host "--here needs a single target, e.g. .\run.ps1 be --here"
@@ -137,7 +148,7 @@ if ($Here) {
             exit $LASTEXITCODE
         }
         'fe' {
-            & (Join-Path $FeDir 'runFE.ps1') $FE
+            & (Join-Path $FeDir 'runFE.ps1') $FE @FEArgs
             exit $LASTEXITCODE
         }
     }
@@ -162,7 +173,7 @@ try {
             Wait-Forever
         }
         'fe' {
-            $FrontendWindow = Open-Window 'sonare-frontend' $FeDir "& ./runFE.ps1 $FE"
+            $FrontendWindow = Open-Window 'sonare-frontend' $FeDir "& ./runFE.ps1 $FE$FEArgLine"
             Write-Host ""
             Write-Host "Frontend starting in its own window."
             Write-Host "Press Ctrl+C to stop it."
@@ -177,7 +188,7 @@ try {
             $BackendWindow = Open-Window 'sonare-backend' $BeDir '& ./runBE.ps1 dev'
             # Give the API a moment to bind so the frontend's first calls do not fail.
             Start-Sleep -Seconds 3
-            $FrontendWindow = Open-Window 'sonare-frontend' $FeDir "& ./runFE.ps1 $FE"
+            $FrontendWindow = Open-Window 'sonare-frontend' $FeDir "& ./runFE.ps1 $FE$FEArgLine"
             Write-Host ""
             Write-Host "Started:"
             if ($pipedUp) {

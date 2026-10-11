@@ -14,7 +14,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 usage() {
-    echo "Usage: ./run.sh [all|piped|be|fe] [--here] [--fe=web|mobile|linux]"
+    echo "Usage: ./run.sh [all|piped|be|fe] [--here] [--fe=web|mobile|linux] [--emulator[=<avd>]|--device=<serial>]"
     echo ""
     echo "  all     Piped, backend and frontend, each in its own terminal (default)"
     echo "  piped   Piped backend only (docker)"
@@ -25,6 +25,9 @@ usage() {
     echo "                   Only valid with a single target."
     echo ""
     echo "  --fe=<target>    FE to build: web (default), mobile, or linux."
+    echo "  --emulator[=<avd>]  mobile: install on the emulator even with a phone plugged in,"
+    echo "                   booting <avd> (default: the first one) if none is running."
+    echo "  --device=<serial>   mobile: install on this adb serial (see 'adb devices')."
     echo ""
     echo "Ports: piped 8090, proxy 8091, backend 3010 (see .env), vite 5183 (web) / 5184 (linux)."
     echo "The web and linux frontends use different ports, so both can run at once."
@@ -37,15 +40,22 @@ usage() {
 TARGET="all"
 HERE=0
 FE="web"
+FE_ARGS=""
 for arg in "$@"; do
     case "$arg" in
         all|piped|be|fe) TARGET="$arg" ;;
         --here) HERE=1 ;;
         --fe=*) FE="${arg#--fe=}" ;;
+        --emulator|--emulator=*|--device=*) FE_ARGS="$FE_ARGS $arg" ;;
         -h|--help) usage ;;
         *) usage ;;
     esac
 done
+
+if [ -n "$FE_ARGS" ] && [ "$FE" != "mobile" ]; then
+    echo "--emulator and --device only apply to --fe=mobile"
+    exit 1
+fi
 
 if [ "$HERE" = "1" ] && [ "$TARGET" = "all" ]; then
     echo "--here needs a single target, e.g. ./run.sh be --here"
@@ -148,7 +158,7 @@ if [ "$HERE" = "1" ]; then
             sleep infinity
             ;;
         be)    exec "$SCRIPT_DIR/sonare-backend/runBE.sh" dev ;;
-        fe)    exec "$SCRIPT_DIR/sonare-frontend/runFE.sh" "$FE" ;;
+        fe)    exec "$SCRIPT_DIR/sonare-frontend/runFE.sh" "$FE"$FE_ARGS ;;
     esac
 fi
 
@@ -171,7 +181,7 @@ case "$TARGET" in
         ;;
     fe)
         STARTED_FE=1
-        open_terminal "sonare-frontend" "$SCRIPT_DIR/sonare-frontend" "./runFE.sh $FE"
+        open_terminal "sonare-frontend" "$SCRIPT_DIR/sonare-frontend" "./runFE.sh $FE$FE_ARGS"
         echo ""
         echo "Frontend starting in its own terminal."
         echo "Press Ctrl+C, or close this terminal, to stop it."
@@ -189,7 +199,7 @@ case "$TARGET" in
         # Give the API a moment to bind so the frontend's first calls do not fail.
         sleep 3
         STARTED_FE=1
-        open_terminal "sonare-frontend" "$SCRIPT_DIR/sonare-frontend" "./runFE.sh $FE"
+        open_terminal "sonare-frontend" "$SCRIPT_DIR/sonare-frontend" "./runFE.sh $FE$FE_ARGS"
         echo ""
         echo "Started:"
         if [ "$PIPED_UP" = "1" ]; then
