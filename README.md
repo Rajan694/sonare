@@ -70,6 +70,7 @@ branches are pushed.
 - [sonare-backend/README.md](sonare-backend/README.md) — setup, environment, Docker production stack
 - [sonare-frontend/README.md](sonare-frontend/README.md) — both apps, ports, checks
 - [sonare-piped-backend/README.md](sonare-piped-backend/README.md) — running Piped, database password
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production (Render, Neon, Funnel), deploys and app releases
 - [docs/api-contract.md](docs/api-contract.md) — the API
 - [docs/TODO.md](docs/TODO.md) — open work and known risks
 - [docs/TEST-PROGRESS.md](docs/TEST-PROGRESS.md) — test suites

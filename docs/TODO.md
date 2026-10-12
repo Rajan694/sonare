@@ -11,26 +11,19 @@ Open items only; finished ones are in the git history.
       `SonarePlayerModule`) has no JVM tests: they need Android's AudioManager (Robolectric) and
       haven't been built here.
 
-## Deployment (sonare.vip, bought 2026-10-12 on Dynadot)
+## Deployment (sonare.vip) - steps in [DEPLOYMENT.md](DEPLOYMENT.md)
 
-- [ ] **Render:** backend as a web service (its Dockerfile), Postgres and Key Value, and the web
-      build as a static site with a `/* -> /index.html` rewrite. Free-plan limits to keep in mind:
-      the web service sleeps after 15 min idle, free Postgres expires after 30 days, and outbound
-      SMTP ports are blocked (hence Resend's HTTP API).
-- [ ] **DNS at Dynadot:** `sonare.vip` -> the Render static site, `api.sonare.vip` -> the backend.
-      Production env: `APP_URL=https://sonare.vip`, `CORS_ORIGINS=https://sonare.vip,http://localhost:47823`.
-- [ ] **Mail:** verify `sonare.vip` in Resend (its DNS records go in at Dynadot), then set
-      `RESEND_API_KEY` (and `MAIL_FROM="Sonare <no-reply@sonare.vip>"`). Without it the backend
-      sends to SMTP, which is Mailpit in development (inbox: http://localhost:8025).
-- [ ] **Piped at home:** `sonare-piped-backend/funnel.sh install` then `up` (Tailscale Funnel + the
-      key-checking gate); set `PIPED_API_URL` and `PIPED_KEY` on Render. `loginctl enable-linger`
-      keeps it up after logging out.
-- [ ] **Releases:** `./build.sh prod all`, then a GitHub release of `Rajan694/sonare` tagged
-      `v<version>` with every file in `sonare-frontend/dist/releases/github/`. The intro page's
-      download buttons and the apps' update check read the latest release, so each release must
-      carry every platform. Optional `GITHUB_TOKEN` on the backend lifts GitHub's 60 calls/hour.
-- [ ] **CI/CD:** GitHub Actions for tests on every push, the release build + GitHub release on a
-      tag, and the Render deploys.
+- [x] Neon Postgres (project `sonare`, branch `production`, Singapore): migrations applied.
+- [x] Piped at home behind Tailscale Funnel with the key-checking gate.
+- [x] `render.yaml` (API on Docker free, static web, Key Value) deploying `main` after CI passes.
+- [x] Release workflow: a `vX.Y.Z` tag builds every app and publishes the GitHub release.
+- [ ] Merge `generic-branch` into `main` (backend, frontend, piped-backend, root).
+- [ ] Render: create the Blueprint from `Rajan694/sonare`, fill `DATABASE_URL`, `RESEND_API_KEY`,
+      `PIPED_KEY` (`GITHUB_TOKEN` optional).
+- [ ] Dynadot DNS: `@` A (Render's IP), `www` and `api` CNAMEs; Resend's records; verify both.
+- [ ] Change `admin@sonare.dev`'s password on the production admin page.
+- [ ] Release signing secrets in `Rajan694/sonare`, then tag the first release.
+- [ ] Check `TRUST_PROXY=1` against Render's proxies (login rate limits per client IP).
 
 ## App follow-ups
 

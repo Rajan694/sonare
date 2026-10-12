@@ -1,0 +1,128 @@
+# Render Blueprint for Sonare's production: the API and the web app (sonare.vip).
+#
+#   sonare-api    Docker web service from Rajan694/sonare-backend   -> api.sonare.vip
+#   sonare-web    static site from Rajan694/sonare-frontend/desktop -> sonare.vip
+#   sonare-cache  Key Value (Redis) for the API's cache and rate limits
+#
+# Not here: Postgres is on Neon (DATABASE_URL), and Piped runs at home behind Tailscale
+# Funnel (PIPED_API_URL + PIPED_KEY). Both deploy from `main` once that commit's GitHub
+# checks pass, so merging generic-branch into main is the release. See docs/DEPLOYMENT.md.
+# Schema: https://render.com/schema/render.yaml.json
+
+services:
+  - type: web
+    name: sonare-api
+    runtime: docker
+    repo: https://github.com/Rajan694/sonare-backend
+    branch: main
+    autoDeployTrigger: checksPass
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    # The image applies pending migrations, then serves (see the Dockerfile's CMD).
+    healthCheckPath: /api/v1/healthz
+    domains:
+      - api.sonare.vip
+    buildFilter:
+      ignoredPaths:
+        - '**/*.md'
+        - test/**
+        - .github/**
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      # Neon's pooled connection string for the `production` branch (sslmode=require).
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: sonare-cache
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # The web app, its onrender.com address until the domain is live, and the desktop
+      # app's fixed Neutralino origin. The Android app sends no Origin.
+      - key: CORS_ORIGINS
+        value: https://sonare.vip,https://sonare-web.onrender.com,http://localhost:47823
+      # Render's load balancer is the one proxy in front of the app.
+      - key: TRUST_PROXY
+        value: '1'
+      - key: APP_URL
+        value: https://sonare.vip
+      - key: MAIL_FROM
+        value: Sonare <no-reply@sonare.vip>
+      - key: RESEND_API_KEY
+        sync: false
+      - key: PIPED_API_URL
+        value: https://sonare-piped.tailb61775.ts.net
+      - key: PIPED_KEY
+        sync: false
+      - key: RELEASES_REPO
+        value: Rajan694/sonare
+      # Optional: a fine-grained token with no permissions lifts GitHub's 60 calls an hour,
+      # which Render's shared outbound IPs can use up.
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: LRCLIB_USER_AGENT
+        value: Sonare/1.0 (https://sonare.vip)
+
+  - type: web
+    name: sonare-web
+    runtime: static
+    repo: https://github.com/Rajan694/sonare-frontend
+    branch: main
+    autoDeployTrigger: checksPass
+    # desktop/ imports ../shared, so the build runs from the repo root.
+    buildCommand: cd desktop && npm ci && npm run build -- --sourcemap false
+    staticPublishPath: desktop/resources
+    domains:
+      - sonare.vip
+    buildFilter:
+      paths:
+        - desktop/**
+        - shared/**
+      ignoredPaths:
+        - '**/*.md'
+        - desktop/test/**
+        - desktop/e2e/**
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      # Render would otherwise npm install the repo root too (only git hooks live there).
+      - key: SKIP_INSTALL_DEPS
+        value: 'true'
+      - key: SONARE_ENV
+        value: prod
+      - key: VITE_API_BASE_PROD
+        value: https://api.sonare.vip/api/v1
+    routes:
+      # A single-page app: every path (/home, /admin, /verify-email ...) is index.html.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      # Vite names these by content hash, so they never change.
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+
+  - type: keyvalue
+    name: sonare-cache
+    plan: free
+    region: singapore
+    # Cache and rate limits only: losing them on a restart is fine.
+    maxmemoryPolicy: allkeys-lru
+    # Only Render services in this workspace can connect.
+    ipAllowList: []
