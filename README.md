@@ -34,6 +34,9 @@ catalog and relays audio streams; Piped is never exposed to the apps.
 
 ## Quick start
 
+New machine? [get-started.md](get-started.md) lists every tool to install on Linux and Windows,
+with the commands.
+
 Requirements: Node 22, Docker, Postgres 17 and Redis 7 on localhost (Linux).
 
 ```bash
@@ -44,6 +47,7 @@ cd sonare
 ./run.sh fe --fe=linux       # the desktop window instead of the browser
 ./run.sh fe --fe=mobile      # Metro + the Android app
 ./build.sh prod linux windows        # installable builds (dev|prod, any platforms, [version])
+./update.sh                  # pull everything, reinstall what changed, migrate, then ./run.sh
 ```
 
 `./build.sh` makes the installable apps into `sonare-frontend/dist/releases/` (see
