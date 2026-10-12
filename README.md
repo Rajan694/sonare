@@ -47,8 +47,9 @@ cd sonare
 ```
 
 `./build.sh` makes the installable apps into `sonare-frontend/dist/releases/` (see
-[sonare-frontend/README.md](sonare-frontend/README.md#build-the-apps)); upload them on
-`/admin` → Releases and the web app offers them under Settings → About.
+[sonare-frontend/README.md](sonare-frontend/README.md#build-the-apps)). `./build.sh prod all`
+also prepares `sonare-frontend/dist/releases/github/`: attach those files to a GitHub release
+of this repo. The web intro page (sonare.vip) links to the latest release's files.
 
 `./run.sh piped|be|fe` starts one part; `--here` keeps it in the current terminal. Ports:
 Piped 8090, proxy 8091, backend 3010, web 5183, desktop window dev server 5184,

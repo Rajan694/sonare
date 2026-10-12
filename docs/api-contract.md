@@ -479,17 +479,14 @@ Web ships a stub where `localLibrary` throws `UnsupportedOnWeb` and `CAPS.localL
 
 `TrackRef` is `{ kind: 'server', id }` or `{ kind: 'local', fingerprint }` — see §8.3.
 
-### 6.8 App releases (Settings → About)
+### 6.8 App releases (update check)
 
-App builds uploaded on the admin page and offered for download in the web app (not in the installed apps).
+App builds are the assets of the latest GitHub release of `RELEASES_REPO` (default `Rajan694/sonare`), under fixed names: `sonare-android-arm64.apk`, `sonare-linux-x64.AppImage`, `sonare-linux-x64.deb`, `sonare-linux-x64.tar.gz`, `sonare-windows-x64.exe`. The web intro page links to `github.com/<repo>/releases/latest/download/<name>` directly; the desktop and Android apps' update check uses these endpoints. There is no admin upload any more.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/releases` | Public. `{ items: AppRelease[] }`, the newest upload of each platform + format. `AppRelease` = `{ id, platform: android\|linux\|windows, format, version, fileName, sizeBytes, sha256, notes, uploadedAt }` |
-| GET | `/releases/:id/download` | Public. The file as an attachment (Range supported); counts a download. 404 unknown, 410 if the file is missing on disk |
-| GET | `/admin/releases` | Admin. Every upload with `downloads`, plus `accepts`: the file extensions each platform takes |
-| POST | `/admin/releases?platform=&version=&fileName=&notes=` | Admin. The file is the raw body (`application/octet-stream`). Format comes from the extension: android `.apk`; linux `.AppImage .deb .rpm .tar.gz .zip`; windows `.exe .msi .zip`. 201 created; 200 when the same platform + format + version replaces an earlier file; 413 over `RELEASE_MAX_MB` |
-| DELETE | `/admin/releases/:id` | Admin. Removes the row and the file |
+| GET | `/releases` | Public. `{ items: AppRelease[] }`, one per fixed-name asset. `AppRelease` = `{ id (GitHub asset id), platform: android\|linux\|windows, format: apk\|appimage\|deb\|tar.gz\|exe, version (tag without the v), fileName, sizeBytes, sha256 (GitHub's digest, or null), notes (release body), uploadedAt, url }`. Cached 10 min; when GitHub fails, the last good list (kept 7 days), else 502 `UPSTREAM_UNAVAILABLE`. No release yet: `{ items: [] }` |
+| GET | `/releases/:id/download` | Public. 302 to the asset on GitHub. 404 for an id not in the list |
 
 ---
 

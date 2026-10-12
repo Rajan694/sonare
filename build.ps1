@@ -7,7 +7,8 @@
 #   .\build.ps1 prod linux windows 1.2.0  # sets the version
 #   .\build.ps1 dev web
 #
-# Builds land in sonare-frontend/dist/releases/; upload them on /admin/releases.
+# Builds land in sonare-frontend/dist/releases/; `prod all` also fills dist/releases/github/,
+# the files to attach to a GitHub release.
 
 $BuildFE = Join-Path $PSScriptRoot 'sonare-frontend/buildFE.ps1'
 

@@ -106,7 +106,7 @@ frontend) runs the same commands.
 - Licence: **MIT** for root, backend and frontend (Piped stays AGPL-3.0 in its own repo).
 - Prettier: unify on the backend/web style (Prettier 3, `printWidth` 120, `singleQuote`,
   `semi`, `trailingComma: all`, `tabWidth` 2, `arrowParens: always`) for mobile too.
-- Production domain (not registered yet): web `https://sonare.dev`, API `https://api.sonare.dev`.
+- Production domain: web `https://sonare.vip`, API `https://api.sonare.vip` (registered 2026-10-12, Dynadot).
 - Email: Mailpit in development, Resend over SMTP in production (already implemented).
 
 ---
@@ -253,8 +253,8 @@ deliberately broken fixtures — use a single `// eslint-disable-next-line` with
    `NODE_ENV=production`, `DATABASE_URL=postgres://sonare:CHANGE_ME@postgres:5432/sonare`,
    `REDIS_URL=redis://redis:6379/1`, `PIPED_API_URL`/`PIPED_PROXY_URL` (comment: where Piped
    runs), `JWT_SECRET=` (comment: `openssl rand -hex 48`),
-   `CORS_ORIGINS=https://sonare.dev,http://localhost:47823`, `TRUST_PROXY=1`,
-   `APP_URL=https://sonare.dev`, the Resend SMTP block, `MAIL_FROM`, `LOG_LEVEL=info`.
+   `CORS_ORIGINS=https://sonare.vip,http://localhost:47823`, `TRUST_PROXY=1`,
+   `APP_URL=https://sonare.vip`, the Resend SMTP block, `MAIL_FROM`, `LOG_LEVEL=info`.
    Make sure `.gitignore` keeps `.env.production` out but lets the example in.
 6. **CI**: add a `docker` job to `.github/workflows/ci.yml` that runs `docker build .` (no push).
 7. Verify locally: `docker compose -f docker-compose.prod.yml --env-file .env.production.example config`
@@ -440,7 +440,7 @@ and ESLint on staged files with that app's own config. No tests in the hook.
   setup, scripts, env (`VITE_API_BASE`; mobile `src/data/config.ts` dev vs release origin),
   release notes — desktop: fixed port 47823, `enableInspector` is off in release; mobile: release
   signing needs `SONARE_UPLOAD_*` in `~/.gradle/gradle.properties`, release builds talk to
-  `https://api.sonare.dev`.
+  `https://api.sonare.vip`.
 
 ---
 
