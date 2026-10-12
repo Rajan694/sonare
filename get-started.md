@@ -143,7 +143,7 @@ The install step (next) creates these files from their `.example` copies; edit t
 
 | File                            | Set                                                                                      |
 | ------------------------------- | ---------------------------------------------------------------------------------------- |
-| `sonare-backend/.env`           | `DATABASE_URL` (your Postgres user and password, database `sonare`), `JWT_SECRET` (any long string). Optional: `RESEND_API_KEY` for real email (else it goes to Mailpit), `PIPED_KEY` when Piped is behind Funnel |
+| `sonare-backend/.env`           | `DATABASE_URL` (your Postgres user and password, database `sonare`), `JWT_SECRET` (any long string). Optional: `RESEND_API_KEY` for real email (else it goes to Mailpit); `PIPED_LOCAL_PROXY_URL=http://localhost:8091` when this machine's Piped is published with Funnel |
 | `sonare-piped-backend/.env`     | Nothing for development. `PIPED_DB_PASSWORD` for production                               |
 | `sonare-frontend/desktop/.env`  | `VITE_API_BASE` (default `http://127.0.0.1:3010/api/v1`); optional `VITE_DEV_EMAIL` / `VITE_DEV_PASSWORD` to sign in automatically in development |
 
@@ -241,9 +241,10 @@ release needs the signing key in `~/.gradle/gradle.properties` (`SONARE_UPLOAD_*
   loginctl enable-linger "$USER"   # keep it running after you log out
   ```
 
-  While Funnel is on, Piped's stream URLs point at the Funnel address, so a local backend
-  needs the same `PIPED_API_URL` and `PIPED_KEY` (and a DNS server that resolves `*.ts.net`).
-  `./funnel.sh down` makes Piped local-only again.
+  While Funnel is on, Piped's stream URLs point at the Funnel address. A backend on the same
+  machine keeps `PIPED_API_URL=http://localhost:8090` and adds
+  `PIPED_LOCAL_PROXY_URL=http://localhost:8091` to `sonare-backend/.env`, so development keeps
+  working. `./funnel.sh down` makes Piped local-only again.
 - **Backend and web on Render**, domain `sonare.vip` (API at `api.sonare.vip`). Production
   needs `NODE_ENV=production`, `APP_URL=https://sonare.vip`, `CORS_ORIGINS=https://sonare.vip`,
   `JWT_SECRET`, `RESEND_API_KEY` (with `sonare.vip` verified in Resend), `PIPED_API_URL` and
