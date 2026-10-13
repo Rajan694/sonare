@@ -10,7 +10,8 @@ set -e
 #   ./build.sh prod linux windows 1.2.0  # sets the version
 #   ./build.sh dev web
 #
-# Builds land in sonare-frontend/dist/releases/; upload them on /admin/releases.
+# Builds land in sonare-frontend/dist/releases/; `prod all` also fills dist/releases/github/,
+# the files to attach to a GitHub release.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 

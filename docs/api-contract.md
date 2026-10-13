@@ -38,7 +38,7 @@ Three UI targets exist today:
 | Download-for-offline | ⚠️ saves files (see §8.7), no offline playback | ✅ | ✅ Android |
 | Equalizer | ⚠️ Web Audio `BiquadFilter` chain only | ✅ native | ✅ native |
 | Output device / Cast | ❌ | ⚠️ limited | ✅ |
-| Waveform peaks | ✅ (server-computed) | ✅ | ✅ |
+| Waveform peaks | ✅ (computed on device, shared via cache) | ✅ | ✅ |
 
 **Consequence for the API.** Everything in §6.6 (local library) is a **device-local API, not HTTP**. Express must not own folder scanning, tag reading, or EQ. What Express *does* own is the **merge**: playlists, favourites and play counts that span local and server tracks. Those endpoints accept local-track fingerprints (§8.3).
 
@@ -385,7 +385,8 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 | Method | Path | Params | Notes |
 |---|---|---|---|
 | GET | `/tracks/:id/stream` | `quality=auto\|low\|normal\|high`, `format=opus\|m4a` | → `{ url, mimeType, codec, bitrateKbps, contentLength, expiresAt, muxed, itag }`. `contentLength` is 0 when unknown. `low` / `auto` / `high` are bitrate ceilings (64 kbps / 160 kbps / none); `normal` is the middle tier of the format (Opus ≈75 kbps; AAC has two tiers, so the 128 kbps one). An explicit `format` is honoured at any bitrate before the other format is considered. |
-| GET | `/tracks/:id/peaks` | `bars=150` | → `{ peaks: number[] }` |
+| GET | `/tracks/:id/peaks` | `bars=150` (8–600, default 150) | → `{ peaks: number[], placeholder: boolean }`. Cached canonical waveform (key `peaks:v2:<rawId>`) resampled to N bars, or deterministic placeholder. Never calls Piped/ffmpeg. |
+| PUT | `/tracks/:id/peaks` | `{ peaks: number[] }` (150 bars) | Signed-in users. Stored once (first upload wins) → 201 `{ stored: true }`, or 200 `{ stored: false }`. Rate-limited. |
 | GET | `/tracks/:id/artwork` | `size=64\|140\|300\|640` | 302 or proxied bytes |
 | GET | `/stream/:token` | — | optional: Express proxies the audio itself, Range-aware (§8.2) |
 
@@ -406,11 +407,11 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 | GET | `/me/library/tracks` | `sort=addedAt\|playCount\|title`, `order=asc\|desc` |
 | GET | `/me/library/albums` · `/artists` · `/genres` | Library tabs. `/artists`: followed artists, then the artists of liked or playlisted songs (`following: false`, `songCount`) |
 | GET | `/me/favourites/tracks` | the `Favourites` tab |
-| PUT / DELETE | `/me/favourites/tracks/:id` | heart toggle |
-| PUT / DELETE | `/me/favourites/albums/:id` | album heart |
-| PUT / DELETE | `/me/following/artists/:id` | Follow / Following |
+| PUT / DELETE | `/me/favourites/tracks/:id` | heart toggle. PUT may send `{ meta }` (see below) |
+| PUT / DELETE | `/me/favourites/albums/:id` | album heart. PUT may send `{ meta }` |
+| PUT / DELETE | `/me/following/artists/:id` | Follow / Following. PUT may send `{ meta }` |
 | GET | `/me/recently-played` | `limit` (1–100, default 10) |
-| GET | `/me/most-played` | `limit` (1–100, default 20), `window=30d\|365d` |
+| GET | `/me/most-played` | `limit` (1–100, default 20), `window=30d\|365d`. Each song shows its newest play `meta` |
 | GET | `/me/new-releases` | Home banner (placeholder: always empty for now) |
 | GET | `/discover/made-for-you` | Home carousel (placeholder: always empty for now) |
 | GET | `/me/playlists` | → `Playlist[]` with `kind`, `trackCount` |
@@ -418,12 +419,22 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 | GET | `/me/playlists/:id` | |
 | PATCH | `/me/playlists/:id` | `{ name?, description? }`, same limits |
 | DELETE | `/me/playlists/:id` | |
-| POST | `/me/playlists/:id/tracks` | `{ trackIds[] }` (1–200-char ids, at most 500) |
+| POST | `/me/playlists/:id/tracks` | `{ trackIds[], metas? }` (1–200-char ids, at most 500; `metas` maps a track id to its `meta`) |
 | DELETE | `/me/playlists/:id/tracks` | `{ index }` (≥ 0) or `{ trackIds[] }` |
 | PATCH | `/me/playlists/:id/tracks/order` | `{ from, to }` (whole numbers ≥ 0) |
 | GET / PUT | `/me/settings` | PUT `{ eqPreset?, gapless?, normalization?, stayOffline?, streamQuality?, downloadQuality?, downloadFormat? }`: only the fields sent change. Qualities are `low\|normal\|high` (`downloadQuality: 'lossless'` is stored as `high`), `downloadFormat` is `opus\|m4a`; any other value is 400 (it used to be ignored) |
 | GET / PUT | `/me/player-state` | PUT `{ trackRef?, positionMs?, queue?, index?, shuffle?, repeat? }`; `trackRef` is `{ kind: 'server', id }` or `{ kind: 'local', fingerprint }`, `repeat` is `off\|all\|one` |
-| POST | `/me/sync` | `{ plays?: [{ trackRef, at, ms? }], favourites?: [{ trackRef, at? }] }` (≤ 1000 each); one bad entry rejects the whole request and nothing is recorded |
+| POST | `/me/sync` | `{ plays?: [{ trackRef, at, ms?, meta? }], favourites?: [{ trackRef, at?, meta? }] }` (≤ 1000 each); one bad entry rejects the whole request and nothing is recorded |
+
+**Metadata snapshots (`meta`).** The apps find songs, albums and artists on YouTube themselves
+([IN-APP-YOUTUBE.md](IN-APP-YOUTUBE.md)), so the backend may never have looked one up. Saving
+or playing one sends what the app knows about it, and lists read the row's snapshot first, then
+`catalog_items` (filled from Piped results), then Piped. Track `{ title, artist, artistId,
+album?, albumId?, durationMs, thumbnail? }`; album `{ title, artist, artistId, year?, trackCount?,
+thumbnail? }` (a saved YouTube playlist uses this too); artist `{ name, thumbnail?,
+monthlyListeners? }`. Ids are `yt:` ids or empty; thumbnails are `/api/v1/…` paths or https
+YouTube image hosts. A snapshot that doesn't fit is dropped, never an error. Only YouTube items
+get one.
 
 ### 6.6 Device-local API — **not HTTP**
 
@@ -468,17 +479,14 @@ Web ships a stub where `localLibrary` throws `UnsupportedOnWeb` and `CAPS.localL
 
 `TrackRef` is `{ kind: 'server', id }` or `{ kind: 'local', fingerprint }` — see §8.3.
 
-### 6.8 App releases (Settings → About)
+### 6.8 App releases (update check)
 
-App builds uploaded on the admin page and offered for download in the web app (not in the installed apps).
+App builds are the assets of the latest GitHub release of `RELEASES_REPO` (default `Rajan694/sonare`), under fixed names: `sonare-android-arm64.apk`, `sonare-linux-x64.AppImage`, `sonare-linux-x64.deb`, `sonare-linux-x64.tar.gz`, `sonare-windows-x64.exe`. The web intro page links to `github.com/<repo>/releases/latest/download/<name>` directly; the desktop and Android apps' update check uses these endpoints. There is no admin upload any more.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/releases` | Public. `{ items: AppRelease[] }`, the newest upload of each platform + format. `AppRelease` = `{ id, platform: android\|linux\|windows, format, version, fileName, sizeBytes, sha256, notes, uploadedAt }` |
-| GET | `/releases/:id/download` | Public. The file as an attachment (Range supported); counts a download. 404 unknown, 410 if the file is missing on disk |
-| GET | `/admin/releases` | Admin. Every upload with `downloads`, plus `accepts`: the file extensions each platform takes |
-| POST | `/admin/releases?platform=&version=&fileName=&notes=` | Admin. The file is the raw body (`application/octet-stream`). Format comes from the extension: android `.apk`; linux `.AppImage .deb .rpm .tar.gz .zip`; windows `.exe .msi .zip`. 201 created; 200 when the same platform + format + version replaces an earlier file; 413 over `RELEASE_MAX_MB` |
-| DELETE | `/admin/releases/:id` | Admin. Removes the row and the file |
+| GET | `/releases` | Public. `{ items: AppRelease[] }`, one per fixed-name asset. `AppRelease` = `{ id (GitHub asset id), platform: android\|linux\|windows, format: apk\|appimage\|deb\|tar.gz\|exe, version (tag without the v), fileName, sizeBytes, sha256 (GitHub's digest, or null), notes (release body), uploadedAt, url }`. Cached 10 min; when GitHub fails, the last good list (kept 7 days), else 502 `UPSTREAM_UNAVAILABLE`. No release yet: `{ items: [] }` |
+| GET | `/releases/:id/download` | Public. 302 to the asset on GitHub. 404 for an id not in the list |
 
 ---
 
@@ -596,13 +604,11 @@ Plays, favourites and playlist membership key off `TrackRef`. When a local track
 
 ### 8.4 Waveform peaks
 
-The `NowPlaying` waveform wants 150 bars. Three options, in order of cost:
+The `NowPlaying` waveform displays canonical 150 bars (clients can request 8–600 bars via `?bars=N`).
 
-1. **Local files** — compute on device during scan, cache in the local index. Free.
-2. **Server tracks** — Express decodes the first ~N seconds with `ffmpeg`/`audiowaveform`, caches `{trackId → peaks}` permanently. Worth it; the array is ~150 bytes.
-3. **Fallback** — synthesise from the envelope of a short probe, or render a flat placeholder.
-
-Do *not* try to compute peaks in the browser from a streamed URL: CORS plus full-file decode makes it unusable.
+1. **On-device computation** — apps compute the real waveform on device by tapping the decoded PCM audio during playback (no extra download or second decode).
+2. **First upload wins** — once a track has been played and all canonical 150 bars are computed, the client uploads via `PUT /tracks/:id/peaks`. Stored permanently in Redis under `peaks:v2:<rawId>`.
+3. **Fallback placeholder** — before real waveform is uploaded, `GET /tracks/:id/peaks` returns a deterministic placeholder (`placeholderPeaks(trackId, bars)`, values 0.3–1) with `{ placeholder: true }`. The server never downloads audio or invokes ffmpeg for waveforms.
 
 ### 8.5 Caching
 
@@ -616,7 +622,7 @@ Do *not* try to compute peaks in the browser from a streamed URL: CORS plus full
 | `/streams` (metadata only) | 1 h |
 | stream URL | **do not cache past `expiresAt`** |
 | lyrics | permanent (with a manual refresh route) |
-| peaks | permanent |
+| peaks | permanent (`peaks:v2:<rawId>`) |
 
 Redis or `lru-cache` — either is fine at this stage. Cache *before* normalisation so a shape change doesn't invalidate everything.
 

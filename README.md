@@ -34,6 +34,9 @@ catalog and relays audio streams; Piped is never exposed to the apps.
 
 ## Quick start
 
+New machine? [get-started.md](get-started.md) lists every tool to install on Linux and Windows,
+with the commands.
+
 Requirements: Node 22, Docker, Postgres 17 and Redis 7 on localhost (Linux).
 
 ```bash
@@ -44,11 +47,13 @@ cd sonare
 ./run.sh fe --fe=linux       # the desktop window instead of the browser
 ./run.sh fe --fe=mobile      # Metro + the Android app
 ./build.sh prod linux windows        # installable builds (dev|prod, any platforms, [version])
+./update.sh                  # pull everything, reinstall what changed, migrate, then ./run.sh
 ```
 
 `./build.sh` makes the installable apps into `sonare-frontend/dist/releases/` (see
-[sonare-frontend/README.md](sonare-frontend/README.md#build-the-apps)); upload them on
-`/admin` → Releases and the web app offers them under Settings → About.
+[sonare-frontend/README.md](sonare-frontend/README.md#build-the-apps)). `./build.sh prod all`
+also prepares `sonare-frontend/dist/releases/github/`: attach those files to a GitHub release
+of this repo. The web intro page (sonare.vip) links to the latest release's files.
 
 `./run.sh piped|be|fe` starts one part; `--here` keeps it in the current terminal. Ports:
 Piped 8090, proxy 8091, backend 3010, web 5183, desktop window dev server 5184,
@@ -65,6 +70,7 @@ branches are pushed.
 - [sonare-backend/README.md](sonare-backend/README.md) — setup, environment, Docker production stack
 - [sonare-frontend/README.md](sonare-frontend/README.md) — both apps, ports, checks
 - [sonare-piped-backend/README.md](sonare-piped-backend/README.md) — running Piped, database password
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production (Render, Neon, Funnel), deploys and app releases
 - [docs/api-contract.md](docs/api-contract.md) — the API
 - [docs/TODO.md](docs/TODO.md) — open work and known risks
 - [docs/TEST-PROGRESS.md](docs/TEST-PROGRESS.md) — test suites

@@ -1,0 +1,124 @@
+# Builds every app and publishes a GitHub release when a version tag is pushed:
+#
+#   git tag v1.2.0 && git push origin v1.2.0
+#
+# The tag is made on this repo, whose submodule pointers say which frontend commit is built.
+# The release carries the five fixed-name files the web intro page and the apps' update check
+# read (buildFE.sh `prod all` -> dist/releases/github/). Versions come from the tag; nothing is
+# committed back (Android's versionCode follows from the version, 1.2.0 -> 1002000).
+#
+# Repository secrets (Settings -> Secrets and variables -> Actions), see docs/DEPLOYMENT.md:
+#   ANDROID_KEYSTORE_BASE64        base64 of ~/.gradle/sonare-upload.keystore
+#   SONARE_UPLOAD_STORE_PASSWORD   the keystore password
+#   SONARE_UPLOAD_KEY_ALIAS        the key alias (sonare)
+#   SONARE_UPLOAD_KEY_PASSWORD     the key password
+
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      # The web bundle in `all` is built for production too.
+      VITE_API_BASE_PROD: https://api.sonare.vip/api/v1
+      # appimagetool is itself an AppImage; runners have no FUSE.
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Version from the tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tags look like v1.2.0, not $GITHUB_REF_NAME"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            sonare-frontend/desktop/package-lock.json
+            sonare-frontend/mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Android NDK
+        run: sdkmanager "ndk;27.1.12297006"
+
+      - name: appimagetool
+        run: |
+          sudo curl -fsSL -o /usr/local/bin/appimagetool \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          sudo chmod +x /usr/local/bin/appimagetool
+
+      - name: Packages and the Neutralino binaries
+        run: |
+          (cd sonare-frontend/desktop && npm ci && npx neu update)
+          (cd sonare-frontend/mobile && npm ci)
+
+      - name: Android signing key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.SONARE_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SONARE_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SONARE_UPLOAD_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE" ] || [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::The Android signing secrets are missing (see docs/DEPLOYMENT.md)"
+            exit 1
+          fi
+          mkdir -p ~/.gradle
+          echo "$KEYSTORE" | base64 -d > ~/.gradle/sonare-upload.keystore
+          {
+            echo "SONARE_UPLOAD_STORE_FILE=$HOME/.gradle/sonare-upload.keystore"
+            echo "SONARE_UPLOAD_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "SONARE_UPLOAD_KEY_ALIAS=$KEY_ALIAS"
+            echo "SONARE_UPLOAD_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> ~/.gradle/gradle.properties
+
+      - name: Build every platform
+        run: ./build.sh prod all "$VERSION"
+
+      - name: Check the release set
+        run: |
+          cd sonare-frontend/dist/releases/github
+          for f in sonare-android-arm64.apk sonare-linux-x64.AppImage sonare-linux-x64.deb \
+                   sonare-linux-x64.tar.gz sonare-windows-x64.exe; do
+            [ -s "$f" ] || { echo "::error::$f was not built"; exit 1; }
+          done
+          ls -l
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" sonare-frontend/dist/releases/github/* \
+            --title "Sonare $VERSION" --generate-notes --verify-tag
+
+      - name: Forget the signing key
+        if: always()
+        run: rm -f ~/.gradle/sonare-upload.keystore ~/.gradle/gradle.properties
