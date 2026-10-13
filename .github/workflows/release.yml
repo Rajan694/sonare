@@ -62,12 +62,15 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # The default package list includes "tools", which current SDK repositories no longer
+      # have, so sdkmanager fails. The NDK matches mobile/android/build.gradle's ndkVersion;
+      # Gradle fetches the SDK platform itself (licenses are accepted here).
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools ndk;27.1.12297006
+          log-accepted-android-sdk-licenses: false
 
       - uses: gradle/actions/setup-gradle@v4
-
-      - name: Android NDK
-        run: sdkmanager "ndk;27.1.12297006"
 
       - name: appimagetool
         run: |
