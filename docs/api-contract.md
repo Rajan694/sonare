@@ -37,7 +37,6 @@ Three UI targets exist today:
 | `ModeSwitch` screen | ❌ hidden | ✅ | ✅ |
 | Download-for-offline | ⚠️ saves files (see §8.7), no offline playback | ✅ | ✅ Android |
 | Equalizer | ⚠️ Web Audio `BiquadFilter` chain only | ✅ native | ✅ native |
-| Output device / Cast | ❌ | ⚠️ limited | ✅ |
 | Waveform peaks | ✅ (computed on device, shared via cache) | ✅ | ✅ |
 
 **Consequence for the API.** Everything in §6.6 (local library) is a **device-local API, not HTTP**. Express must not own folder scanning, tag reading, or EQ. What Express *does* own is the **merge**: playlists, favourites and play counts that span local and server tracks. Those endpoints accept local-track fingerprints (§8.3).
@@ -127,7 +126,7 @@ Queue list, now-playing index, "N songs · 2 from server", clear, reorder. **Cli
 
 ### Equalizer (`screens/Equalizer.tsx`, both)
 
-9 bands `32 / 64 / 125 / 250 / 500 / 1K / 2K / 8K / 16K`; presets `Flat, Bass Boost, Classical, Electronic, Hip-Hop, Jazz, Pop, Rock`; bass boost, volume normalization, gapless, playback speed `0.5×–2.0×`; output device picker.
+9 bands `32 / 64 / 125 / 250 / 500 / 1K / 2K / 8K / 16K`; presets `Flat, Bass Boost, Classical, Electronic, Hip-Hop, Jazz, Pop, Rock`; bass boost, volume normalization, gapless, playback speed `0.5×–2.0×`. Audio plays on the system's output (there is no picker).
 **All device-local.** Only persisted server-side: `GET|PUT /me/settings`.
 
 ### Folders (`screens/Folders.tsx`, both)
@@ -308,7 +307,6 @@ rather than "no lyrics"; found lyrics stay cached in Redis, so only unseen songs
 | Genres / browse categories | Express (static + derived) |
 | Local folder scan, tag read, storage stats | **device**, not HTTP |
 | Equalizer, gapless, normalization, playback speed | **device** |
-| Output device / Cast | **device** |
 | Downloads for offline | **device** (URL from `/tracks/:id/stream`, bytes via `/stream/:token`; §8.7) |
 | Sync of local state ↔ server | Express, §6.7 |
 
