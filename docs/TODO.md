@@ -7,9 +7,9 @@ Open items only; finished ones are in the git history.
 - [ ] Make the app runnable end to end with all UI working properly (desktop + mobile)
 - [ ] Test the in-app YouTube work and today's changes, then merge `generic-branch` into `main`
       (backend, frontend, piped-backend, root).
-- [ ] The Kotlin side of the output picker and sleep timer (`OutputDevices`, `PlaybackEngine`,
-      `SonarePlayerModule`) has no JVM tests: they need Android's AudioManager (Robolectric) and
-      haven't been built here.
+- [ ] Work through [AUDIT.md](AUDIT.md) (Rajan's fix / leave decisions, 2026-10-14).
+- [ ] The Kotlin player (`PlaybackEngine`, `SonarePlayerModule`) has no JVM tests: it needs
+      Android's AudioManager (Robolectric) and hasn't been built here.
 
 ## Deployment (sonare.vip) - steps in [DEPLOYMENT.md](DEPLOYMENT.md)
 
@@ -38,7 +38,11 @@ Open items only; finished ones are in the git history.
     (the Folders screen says so).
   - The playlist heart (MOB-PL-004): the backend has no endpoint for saving a YouTube playlist.
   - Settings rows other than Account (crossfade, folders, cache size) are still static.
-  - Artist `monthlyListeners` is actually YouTube subscriber count.
+
+## Later
+
+- [ ] **Per-IP rate limit on the catalog and stream routes** (audit I15), to protect the home
+      Piped from one client hammering it. Not needed while Sonare is for family and friends.
 
 ## Later: external dependencies that may break
 
