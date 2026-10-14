@@ -9,7 +9,7 @@ it. Linux commands are for Ubuntu / Debian; Windows commands are for PowerShell 
 | Part                    | Folder                  | Runs on                    | Port(s)                       |
 | ----------------------- | ----------------------- | -------------------------- | ----------------------------- |
 | Piped (YouTube data)    | `sonare-piped-backend/` | Docker                     | 8090 API, 8091 proxy          |
-| Sonare API              | `sonare-backend/`       | Node 22 + Postgres + Redis | 3010 (Mailpit inbox 8025)     |
+| Sonare API              | `sonare-backend/`       | Node 22 + Postgres + Redis | 3010                          |
 | Web app, desktop window | `sonare-frontend/desktop` | Node 22 (Vite, NeutralinoJS) | 5183 web, 5184 window     |
 | Android app             | `sonare-frontend/mobile`  | Node 22 + JDK 17 + Android SDK | Metro 8081              |
 
@@ -23,7 +23,7 @@ home behind Tailscale Funnel (see [Production](#8-production)).
 | ------------------------- | ---------------- | ----------------------------------- |
 | Git                       | any recent       | everything                          |
 | Node.js                   | 22               | backend, web, desktop, Android      |
-| Docker + compose plugin   | Engine 24+ / Desktop | Piped, and Mailpit in development |
+| Docker + compose plugin   | Engine 24+ / Desktop | Piped                               |
 | PostgreSQL                | 17 (16 works)    | backend                             |
 | Redis                     | 7 (optional)     | backend cache and rate limits       |
 | WebKitGTK + GStreamer     | 4.1 / 1.0        | desktop window on Linux             |
@@ -143,7 +143,7 @@ The install step (next) creates these files from their `.example` copies; edit t
 
 | File                            | Set                                                                                      |
 | ------------------------------- | ---------------------------------------------------------------------------------------- |
-| `sonare-backend/.env`           | `DATABASE_URL` (your Postgres user and password, database `sonare`), `JWT_SECRET` (any long string). Optional: `RESEND_API_KEY` for real email (else it goes to Mailpit); `PIPED_LOCAL_PROXY_URL=http://localhost:8091` when this machine's Piped is published with Funnel |
+| `sonare-backend/.env`           | `DATABASE_URL` (your Postgres user and password, database `sonare`), `JWT_SECRET` (any long string). `RESEND_API_KEY` to send verification and password-reset email (without it none is sent); `PIPED_LOCAL_PROXY_URL=http://localhost:8091` when this machine's Piped is published with Funnel |
 | `sonare-piped-backend/.env`     | Nothing for development. `PIPED_DB_PASSWORD` for production                               |
 | `sonare-frontend/desktop/.env`  | `VITE_API_BASE` (default `http://127.0.0.1:3010/api/v1`); optional `VITE_DEV_EMAIL` / `VITE_DEV_PASSWORD` to sign in automatically in development |
 
@@ -183,7 +183,6 @@ Then open:
 | http://localhost:5183/      | intro page; **Open web app** goes to `/home`            |
 | http://localhost:5183/admin | admin page (`admin@sonare.dev`)                          |
 | http://localhost:3010/api/v1/healthz | backend health (database, Redis, Piped)        |
-| http://localhost:8025       | Mailpit: every email the backend sends in development  |
 
 Closing the launcher terminal (or Ctrl+C) stops everything it started.
 
@@ -254,7 +253,7 @@ release needs the signing key in `~/.gradle/gradle.properties` (`SONARE_UPLOAD_*
 
 | Symptom                                           | Fix                                                                       |
 | ------------------------------------------------- | ------------------------------------------------------------------------- |
-| "Verification email not sent" in development      | It's in Mailpit: http://localhost:8025                                    |
+| Verification or reset email never arrives         | Set `RESEND_API_KEY` in `sonare-backend/.env`, verify `sonare.vip` in Resend, then check spam and the backend log |
 | `EMFILE: too many open files, watch` (Vite/Metro) | `echo fs.inotify.max_user_instances=1024 \| sudo tee /etc/sysctl.d/60-inotify.conf && sudo sysctl --system` |
 | A port is already in use                          | Ports are listed above; `ss -ltnp \| grep <port>` (Linux) / `Get-NetTCPConnection -LocalPort <port>` (Windows) |
 | Gradle: `JAVA_COMPILER` / no `javac`              | Install the JDK 17 (not a JRE) and set `JAVA_HOME`                        |
