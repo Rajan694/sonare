@@ -20,6 +20,73 @@ Snapshot: root `6d92ec4`, sonare-backend `e61dfe2`, sonare-frontend `5ff6d15`, a
 "Reproduced" means I confirmed it by running something. Everything else comes from reading the
 code.
 
+## Status (2026-10-15)
+
+Everything marked fix (or "same on both") is done on `generic-branch` and committed, not pushed.
+Commits: `be` sonare-backend, `fe` sonare-frontend, `root` this repo.
+Checks on 2026-10-15: backend 500 of 500 tests, desktop / web 742 of 742, Android 405 of 405;
+typecheck clean in all three. I3 still needs a listen in the Linux window.
+
+| Item | Status | Commits |
+| :--- | :--- | :--- |
+| H0 email tests outside their describe | done | be `de25544` |
+| H1 offline plays thrown away | done: batches of 100, a refused batch is split, bigger body limit | fe `ffc4c78`, be `b34e927` |
+| H2 desktop liked songs not shown | done: `GET /me/favourites/ids`, hearts in both apps | be `b34e927`, fe `7fe1578` `d550b64` |
+| H3 waveforms and lyrics only in Redis | done: Postgres (bytea / jsonb) behind Redis, pruned to fit Neon | be `a12d52c` |
+| H4 desktop signs out on any refresh failure | done | fe `930d40d` |
+| H5 Android search | done | fe `d550b64` |
+| M1 desktop Up next ignores shuffle | done: shuffle reorders the queue (shared/player/queue.ts) | fe `3ca0030` |
+| M2 Android queue by id | done: by position | fe `80a2ece` |
+| M3 desktop gapless switch | done | fe `e14c198` |
+| M4 desktop EQ distortion | done: limiter | fe `698f917` |
+| M5 Android plays without song details | done | fe `ffc4c78` |
+| M6 unbounded Piped bursts | done | be `b34e927` |
+| M7 refresh tokens pile up | done: 90 days, rotated rows deleted, pruned | be `c5555f8` |
+| M8 playlist endpoints | done: transactions, entryId, reorder / remove by row | be `c5555f8` |
+| M9 favourites fail while Piped is down | done | be `b34e927` |
+| L1 L2 L3 Android repeat-one icon, guest heart, artist link | done | fe `80a2ece` |
+| L4 Android remove from playlist hides failures | done | fe `6ce72e7` |
+| L5 L6 L7 L8 desktop search label, Library Songs, Home, phone-width rows | done | fe `10f2d25` |
+| L9 PLAYS column | done: Library and Most played only | fe `7fe1578` |
+| L10 shuffle | done: Fisher-Yates, Shuffle buttons start shuffled | fe `3ca0030` `80a2ece` |
+| L11 lyrics timing saves | done: one save 600 ms after the last tap | fe `7fe1578` `d550b64` |
+| L12 monthly listeners | removed | fe `80a2ece` `10f2d25` |
+| P1 queue comes back, across devices | done | fe `f7378d1` `fb35d00`, be `c5555f8` |
+| P2 lock-screen controls and media keys (desktop / web) | done: Media Session | fe `f7378d1` |
+| P3 P5 crossfade, next song looked up ahead (desktop) | done | fe `e14c198` |
+| P4 sleep timer | removed from both, intro page too | fe `80a2ece` `3dc670c` |
+| P6 Playing from | done | fe `3ca0030` |
+| P7 favourites in the song menu (desktop) | done | fe `10f2d25` |
+| P8 save a YouTube playlist (desktop) | done | fe `7fe1578` |
+| P9 reorder songs in an own playlist (Android) | done: drag handles | fe `6ce72e7` |
+| P10 Add songs (Android) | done | fe `6ce72e7` |
+| P11 P12 lyrics import / auto-scroll | no import anywhere; Auto-scroll for synced lyrics only; Lyrics button disabled when none found | fe `7fe1578` `d550b64` |
+| P13 All search tab (desktop) | done | fe `10f2d25` |
+| P14 local music folders (Android) | done: music and audio permission asked from Offline Mode and downloads | fe `504cfc9` `57e9f00` |
+| P15 stream cache | 300 MB on both, size and Clear in Settings | fe `4b8a194` `c3fa372` |
+| P16 settings kept on the device | done, synced when signed in | fe `b515e4e` `80a2ece` |
+| P17 Retry (Android) | done | fe `80a2ece` |
+| P18 favourites shelf | left as is | - |
+| P19 Up next (Android) | done | fe `d550b64` |
+| P20 save the queue as a playlist | Queue 1, Queue 2 ... without asking | fe `80a2ece` `3ca0030` |
+| P21 artist Popular | 5 songs | fe `80a2ece` |
+| I1 shared code | done: shared/api/client, settings, sync/playSync, player/queue, savedQueue, autoplay, net/serverWake, search/recentSearches, downloads/fileNames | fe `3ca0030` `11fbf6f` `10b08ba` `3801667` and others |
+| I2 backend uses shared/catalog | done: generated copy via scripts/sync-shared-catalog.mjs | be `8113b3d`, root `f70cac5` |
+| I3 desktop plays while downloading | done for the Linux window (Opus / WebM); Windows still waits for the file | fe `cfd71b7` |
+| I4 long lists drawn only where visible | done: Android Queue (FlatList), desktop Library and queue panel (useVirtualRows) | fe `49eed06` `9b4fb0d` |
+| I5 forgot password by emailed code (no deep links) | done in both apps | be `91df705`, fe `b99ee09` `198f888` |
+| I6 Load more | done in both: search chips, albums over 100 songs, YouTube playlists (and the desktop artist albums) | fe `ee802e9` `49eed06` |
+| I7 playlists in Offline Mode | done in both: songs on the device play, the rest are left out with a count | fe `49eed06` `9b4fb0d` |
+| I8 rename a playlist | done in both | fe `7fe1578` `d550b64` |
+| I9 read-only lyrics, edit routes removed | done | be `c5555f8`, fe `7fe1578` `d550b64` |
+| I10 request timeouts, "waking up" notice | done in both | fe `cf3813b` |
+| I11 keep playing similar songs | done in both, Autoplay switch (on) | be `91df705`, fe `59b3daa` |
+| I12 recent searches (10) | done in both | fe `d550b64` `ee802e9` |
+| I13 change password, name, delete account | done in both | be `91df705`, fe `b99ee09` `198f888` |
+| I14 downloads after a reinstall | done in both: files are named `Artist - Title [id]`, and a scan links them back (no hidden manifest) | fe `504cfc9` `e1c57b2` `9b4fb0d` `2fe9020` |
+| I15 per-IP rate limit | later: in TODO | root `3e45533` |
+| I16 cached auth users | done | be `b34e927` |
+
 ## Checks
 
 - Desktop / web: typecheck clean, 649 of 649 tests pass.
