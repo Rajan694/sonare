@@ -22,10 +22,12 @@ code.
 
 ## Status (2026-10-15)
 
-Everything marked fix (or "same on both") is done on `generic-branch` and committed, not pushed.
+Everything marked fix (or "same on both") is done on `generic-branch`.
 Commits: `be` sonare-backend, `fe` sonare-frontend, `root` this repo.
-Checks on 2026-10-15: backend 500 of 500 tests, desktop / web 742 of 742, Android 405 of 405;
-typecheck clean in all three. I3 still needs a listen in the Linux window.
+Checks on 2026-10-15: backend 501 of 501 tests, desktop / web 747 of 747, Android 405 of 405;
+typecheck clean in all three. Tried in the Linux window: I3 had never worked there (curl blocked
+every file read until the download ended; fixed, plays 2 s after the click while downloading),
+the Library list could not scroll to its end (fixed), I7 and I14 work.
 
 | Item | Status | Commits |
 | :--- | :--- | :--- |
@@ -72,17 +74,17 @@ typecheck clean in all three. I3 still needs a listen in the Linux window.
 | P21 artist Popular | 5 songs | fe `80a2ece` |
 | I1 shared code | done: shared/api/client, settings, sync/playSync, player/queue, savedQueue, autoplay, net/serverWake, search/recentSearches, downloads/fileNames | fe `3ca0030` `11fbf6f` `10b08ba` `3801667` and others |
 | I2 backend uses shared/catalog | done: generated copy via scripts/sync-shared-catalog.mjs | be `8113b3d`, root `f70cac5` |
-| I3 desktop plays while downloading | done for the Linux window (Opus / WebM); Windows still waits for the file | fe `cfd71b7` |
-| I4 long lists drawn only where visible | done: Android Queue (FlatList), desktop Library and queue panel (useVirtualRows) | fe `49eed06` `9b4fb0d` |
+| I3 desktop plays while downloading | done for the Linux window (Opus / WebM); Windows still waits for the file | fe `cfd71b7` `5a33a8f` |
+| I4 long lists drawn only where visible | done: Android Queue (FlatList), desktop Library and queue panel (useVirtualRows) | fe `49eed06` `9b4fb0d` `43cf436` |
 | I5 forgot password by emailed code (no deep links) | done in both apps | be `91df705`, fe `b99ee09` `198f888` |
 | I6 Load more | done in both: search chips, albums over 100 songs, YouTube playlists (and the desktop artist albums) | fe `ee802e9` `49eed06` |
-| I7 playlists in Offline Mode | done in both: songs on the device play, the rest are left out with a count | fe `49eed06` `9b4fb0d` |
+| I7 playlists in Offline Mode | done in both: songs on the device play, the rest are left out with a count | fe `49eed06` `9b4fb0d` `57fa025` |
 | I8 rename a playlist | done in both | fe `7fe1578` `d550b64` |
 | I9 read-only lyrics, edit routes removed | done | be `c5555f8`, fe `7fe1578` `d550b64` |
 | I10 request timeouts, "waking up" notice | done in both | fe `cf3813b` |
 | I11 keep playing similar songs | done in both, Autoplay switch (on) | be `91df705`, fe `59b3daa` |
 | I12 recent searches (10) | done in both | fe `d550b64` `ee802e9` |
-| I13 change password, name, delete account | done in both | be `91df705`, fe `b99ee09` `198f888` |
+| I13 change password, name, delete account | done in both | be `91df705` `9967ae4`, fe `b99ee09` `198f888` |
 | I14 downloads after a reinstall | done in both: files are named `Artist - Title [id]`, and a scan links them back (no hidden manifest) | fe `504cfc9` `e1c57b2` `9b4fb0d` `2fe9020` |
 | I15 per-IP rate limit | later: in TODO | root `3e45533` |
 | I16 cached auth users | done | be `b34e927` |
