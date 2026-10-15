@@ -23,7 +23,7 @@ desktop / web / mobile apps
         ▼
 sonare-backend :3010 ──► Postgres (accounts, library, playlists, logs)
         │             ──► Redis (cache, rate limits)
-        │             ──► Mailpit :8025 in development / Resend in production (account emails)
+        │             ──► Resend (account emails)
         │             ──► LRCLIB (lyrics)
         ▼
 Piped API :8090 ──► piped-proxy :8091 (audio and images)
@@ -56,8 +56,7 @@ also prepares `sonare-frontend/dist/releases/github/`: attach those files to a G
 of this repo. The web intro page (sonare.vip) links to the latest release's files.
 
 `./run.sh piped|be|fe` starts one part; `--here` keeps it in the current terminal. Ports:
-Piped 8090, proxy 8091, backend 3010, web 5183, desktop window dev server 5184,
-Mailpit inbox http://localhost:8025.
+Piped 8090, proxy 8091, backend 3010, web 5183, desktop window dev server 5184.
 
 ## Branch workflow
 

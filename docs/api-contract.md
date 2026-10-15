@@ -37,7 +37,6 @@ Three UI targets exist today:
 | `ModeSwitch` screen | ❌ hidden | ✅ | ✅ |
 | Download-for-offline | ⚠️ saves files (see §8.7), no offline playback | ✅ | ✅ Android |
 | Equalizer | ⚠️ Web Audio `BiquadFilter` chain only | ✅ native | ✅ native |
-| Output device / Cast | ❌ | ⚠️ limited | ✅ |
 | Waveform peaks | ✅ (computed on device, shared via cache) | ✅ | ✅ |
 
 **Consequence for the API.** Everything in §6.6 (local library) is a **device-local API, not HTTP**. Express must not own folder scanning, tag reading, or EQ. What Express *does* own is the **merge**: playlists, favourites and play counts that span local and server tracks. Those endpoints accept local-track fingerprints (§8.3).
@@ -118,8 +117,8 @@ Waveform in the desktop build reads `currentTrack.peaks` (150 bars) — that arr
 
 ### Lyrics (`screens/Lyrics.tsx`, both)
 
-Synced lines `[{ atMs, text }]`, plain-text fallback, `.lrc` source badge, per-track **offset** (`Offset -0.3s`), auto-scroll, "Import lyrics".
-→ `GET /tracks/:id/lyrics`, `POST /tracks/:id/lyrics` (manual import), `PATCH /tracks/:id/lyrics/offset`.
+Synced lines `[{ atMs, text }]`, plain-text fallback, `.lrc` source badge, per-track **offset** (`Offset -0.3s`), auto-scroll (synced lyrics only). Read-only: no editing or import.
+→ `GET /tracks/:id/lyrics`, `PATCH /tracks/:id/lyrics/offset`.
 
 ### Queue (`screens/Queue.tsx`, both)
 
@@ -127,7 +126,7 @@ Queue list, now-playing index, "N songs · 2 from server", clear, reorder. **Cli
 
 ### Equalizer (`screens/Equalizer.tsx`, both)
 
-9 bands `32 / 64 / 125 / 250 / 500 / 1K / 2K / 8K / 16K`; presets `Flat, Bass Boost, Classical, Electronic, Hip-Hop, Jazz, Pop, Rock`; bass boost, volume normalization, gapless, playback speed `0.5×–2.0×`; output device picker.
+9 bands `32 / 64 / 125 / 250 / 500 / 1K / 2K / 8K / 16K`; presets `Flat, Bass Boost, Classical, Electronic, Hip-Hop, Jazz, Pop, Rock`; bass boost, volume normalization, gapless, playback speed `0.5×–2.0×`. Audio plays on the system's output (there is no picker).
 **All device-local.** Only persisted server-side: `GET|PUT /me/settings`.
 
 ### Folders (`screens/Folders.tsx`, both)
@@ -308,7 +307,6 @@ rather than "no lyrics"; found lyrics stay cached in Redis, so only unseen songs
 | Genres / browse categories | Express (static + derived) |
 | Local folder scan, tag read, storage stats | **device**, not HTTP |
 | Equalizer, gapless, normalization, playback speed | **device** |
-| Output device / Cast | **device** |
 | Downloads for offline | **device** (URL from `/tracks/:id/stream`, bytes via `/stream/:token`; §8.7) |
 | Sync of local state ↔ server | Express, §6.7 |
 
@@ -347,12 +345,18 @@ production image's `HEALTHCHECK` uses it.
 | POST | `/auth/logout` | — |
 | POST | `/auth/verify-email` | `{ token }` → `{ ok: true }`; 400 `INVALID_TOKEN` when used or expired (24 h) |
 | POST | `/auth/resend-verification` | Bearer → `{ ok: true }` or `{ ok: true, alreadyVerified: true }`; 3 per hour |
-| POST | `/auth/forgot-password` | `{ email }` → always `{ ok: true }`; emails a reset link if the account exists |
-| POST | `/auth/reset-password` | `{ token, password }` → `{ ok: true }`; signs out every device; 400 `INVALID_TOKEN` when used or expired (1 h) |
+| POST | `/auth/verify-email-code` | Bearer, `{ code }` (6 digits) → `{ ok: true }`; 400 `INVALID_CODE` / `CODE_EXPIRED` (30 min, 5 guesses) |
+| POST | `/auth/forgot-password` | `{ email }` → always `{ ok: true }`; emails a reset link and a 6-digit code if the account exists |
+| POST | `/auth/verify-reset-code` | `{ email, code }` → `{ resetToken }` (valid 15 min) for `/auth/reset-password`; 400 `INVALID_CODE` (also for an unknown address) / `CODE_EXPIRED` (30 min, 5 guesses); 10 tries per address per 15 min. The apps' "Forgot password" uses this instead of the link |
+| POST | `/auth/reset-password` | `{ token, password }` → `{ ok: true }`; `token` is the emailed link's or a `resetToken`; signs out every device; 400 `INVALID_TOKEN` when used or expired (1 h) |
+| POST | `/auth/change-password` | Bearer, `{ currentPassword, newPassword (8–128) }` → `{ accessToken, refreshToken }` (a fresh session for this device; every other device is signed out); 400 `WRONG_PASSWORD`; 5 wrong tries per 15 min |
 | GET | `/me` | → `{ id, displayName, email, emailVerified, createdAt }` |
+| PATCH | `/me` | `{ displayName (1–100, trimmed) }` → the user |
+| DELETE | `/me` | `{ password }` → `{ ok: true }`; deletes the account with its library, playlists, plays and settings; 400 `WRONG_PASSWORD`; 403 for the admin account |
 
 `user` is `{ id, email, displayName, emailVerified, createdAt }`. Emails are lowercased. Rate-limited
-routes answer 429 `RATE_LIMITED` with `Retry-After`. Email links point at `APP_URL`
+routes answer 429 `RATE_LIMITED` with `Retry-After`. Refresh tokens expire 90 days after they
+were issued; each refresh replaces the token. Email links point at `APP_URL`
 (`/verify-email?token=…`, `/reset-password?token=…`), which the web app serves.
 
 ### 6.2 Catalog (upstream: Piped)
@@ -365,6 +369,7 @@ routes answer 429 `RATE_LIMITED` with `Retry-After`. Email links point at `APP_U
 | GET | `/trending` | `region` (two-letter country code, default `IN`), `limit` (1–100, default 50) | `/trending` |
 | GET | `/genres` | — | static: `[{ id, name, query }]`; opening a category searches for `query` |
 | GET | `/tracks/:id` | — | `/streams/:videoId` |
+| GET | `/tracks/:id/related` | `limit` (1–50, default 20) | `/streams/:videoId` → `relatedStreams`, songs only (1–15 min, no shorts, not the song itself), else a `music_songs` search for the artist. The apps play these when the queue runs out |
 | GET | `/albums/:id` | — | `/playlists/:id` |
 | GET | `/albums/:id/tracks` | `cursor` | `/playlists/:id`, `/nextpage/playlists/:id` |
 | GET | `/artists/:id` | — | `/channel/:id` |
@@ -385,7 +390,7 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 | Method | Path | Params | Notes |
 |---|---|---|---|
 | GET | `/tracks/:id/stream` | `quality=auto\|low\|normal\|high`, `format=opus\|m4a` | → `{ url, mimeType, codec, bitrateKbps, contentLength, expiresAt, muxed, itag }`. `contentLength` is 0 when unknown. `low` / `auto` / `high` are bitrate ceilings (64 kbps / 160 kbps / none); `normal` is the middle tier of the format (Opus ≈75 kbps; AAC has two tiers, so the 128 kbps one). An explicit `format` is honoured at any bitrate before the other format is considered. |
-| GET | `/tracks/:id/peaks` | `bars=150` (8–600, default 150) | → `{ peaks: number[], placeholder: boolean }`. Cached canonical waveform (key `peaks:v2:<rawId>`) resampled to N bars, or deterministic placeholder. Never calls Piped/ffmpeg. |
+| GET | `/tracks/:id/peaks` | `bars=150` (8–600, default 150) | → `{ peaks: number[], placeholder: boolean }`. The stored canonical waveform (Postgres `waveforms`, one byte per bar, cached in Redis as `peaks:v3:<rawId>`) resampled to N bars, or deterministic placeholder. Never calls Piped/ffmpeg. |
 | PUT | `/tracks/:id/peaks` | `{ peaks: number[] }` (150 bars) | Signed-in users. Stored once (first upload wins) → 201 `{ stored: true }`, or 200 `{ stored: false }`. Rate-limited. |
 | GET | `/tracks/:id/artwork` | `size=64\|140\|300\|640` | 302 or proxied bytes |
 | GET | `/stream/:token` | — | optional: Express proxies the audio itself, Range-aware (§8.2) |
@@ -394,11 +399,12 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 
 | Method | Path | Body / params | Notes |
 |---|---|---|---|
-| GET | `/tracks/:id/lyrics` | `prefer=synced\|plain`, `script=original\|latin\|devanagari\|gurmukhi\|arabic\|bengali\|gujarati\|tamil\|telugu` (anything else is 400; a script picks the LRCLIB version written in it, else the original) | → `{ synced: boolean, provider: 'lrclib'\|'tags'\|'user', offsetMs, lines: [{atMs,text}], plain?: string }`; 404 = no lyrics, **502 `LYRICS_UNAVAILABLE`** = LRCLIB didn't answer (not cached) |
-| GET | `/lyrics/search` | `track` (required, ≤ 200), `artist`, `album` | manual picker for the "Import lyrics" button; 502 `LYRICS_UNAVAILABLE` when LRCLIB is down |
-| POST | `/tracks/:id/lyrics` | `{ lrc }` or `{ plain }` (at least one, ≤ 100 000 chars each) | user import |
-| PATCH | `/tracks/:id/lyrics/offset` | `{ offsetMs }` (whole number, ±600 000) | the `Offset -0.3s` chip |
-| DELETE | `/tracks/:id/lyrics` | — | revert to auto |
+| GET | `/tracks/:id/lyrics` | `prefer=synced\|plain`, `script=original\|latin\|devanagari\|gurmukhi\|arabic\|bengali\|gujarati\|tamil\|telugu` (anything else is 400; a script picks the LRCLIB version written in it, else the original) | → `{ synced: boolean, provider: 'lrclib'\|'tags', offsetMs, lines: [{atMs,text}], plain?: string }`; `offsetMs` is the signed-in user's own timing fix (0 for guests); 404 = no lyrics, **502 `LYRICS_UNAVAILABLE`** = LRCLIB didn't answer (not cached) |
+| GET | `/lyrics/search` | `track` (required, ≤ 200), `artist`, `album` | LRCLIB search; 502 `LYRICS_UNAVAILABLE` when LRCLIB is down |
+| PATCH | `/tracks/:id/lyrics/offset` | `{ offsetMs }` (whole number, ±600 000) | the Earlier / Later timing buttons; per user |
+
+Lyrics are read-only (audit I9, 2026-10-15): saving your own lyrics (`POST /tracks/:id/lyrics`)
+and restoring the original (`DELETE /tracks/:id/lyrics`) were removed.
 
 ### 6.5 User library & playlists
 
@@ -407,6 +413,7 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 | GET | `/me/library/tracks` | `sort=addedAt\|playCount\|title`, `order=asc\|desc` |
 | GET | `/me/library/albums` · `/artists` · `/genres` | Library tabs. `/artists`: followed artists, then the artists of liked or playlisted songs (`following: false`, `songCount`) |
 | GET | `/me/favourites/tracks` | the `Favourites` tab |
+| GET | `/me/favourites/ids` | → `{ ids: string[] }` (`yt:` / `local:`, newest first): the apps' heart state, no metadata lookups |
 | PUT / DELETE | `/me/favourites/tracks/:id` | heart toggle. PUT may send `{ meta }` (see below) |
 | PUT / DELETE | `/me/favourites/albums/:id` | album heart. PUT may send `{ meta }` |
 | PUT / DELETE | `/me/following/artists/:id` | Follow / Following. PUT may send `{ meta }` |
@@ -414,16 +421,17 @@ playlist tracks still come back as placeholder rows, because mobile reads heart 
 | GET | `/me/most-played` | `limit` (1–100, default 20), `window=30d\|365d`. Each song shows its newest play `meta` |
 | GET | `/me/new-releases` | Home banner (placeholder: always empty for now) |
 | GET | `/discover/made-for-you` | Home carousel (placeholder: always empty for now) |
-| GET | `/me/playlists` | → `Playlist[]` with `kind`, `trackCount` |
+| GET | `/me/playlists` | → `Playlist[]` with `kind`, `trackCount`, alphabetical (case-insensitive), then by creation |
 | POST | `/me/playlists` | `{ name (1–100), kind?, description? (≤ 500) }`; `kind` is `local\|synced\|online` (default `online`; legacy `offline` is accepted) |
 | GET | `/me/playlists/:id` | |
-| PATCH | `/me/playlists/:id` | `{ name?, description? }`, same limits |
+| PATCH | `/me/playlists/:id` | `{ name?, description? }`, same limits; a field left out keeps its value, `description: ""` clears it |
 | DELETE | `/me/playlists/:id` | |
 | POST | `/me/playlists/:id/tracks` | `{ trackIds[], metas? }` (1–200-char ids, at most 500; `metas` maps a track id to its `meta`) |
-| DELETE | `/me/playlists/:id/tracks` | `{ index }` (≥ 0) or `{ trackIds[] }` |
-| PATCH | `/me/playlists/:id/tracks/order` | `{ from, to }` (whole numbers ≥ 0) |
-| GET / PUT | `/me/settings` | PUT `{ eqPreset?, gapless?, normalization?, stayOffline?, streamQuality?, downloadQuality?, downloadFormat? }`: only the fields sent change. Qualities are `low\|normal\|high` (`downloadQuality: 'lossless'` is stored as `high`), `downloadFormat` is `opus\|m4a`; any other value is 400 (it used to be ignored) |
-| GET / PUT | `/me/player-state` | PUT `{ trackRef?, positionMs?, queue?, index?, shuffle?, repeat? }`; `trackRef` is `{ kind: 'server', id }` or `{ kind: 'local', fingerprint }`, `repeat` is `off\|all\|one` |
+| GET | `/me/playlists/:id/tracks` | each item also has `entryId`: its row in the playlist, so the same song twice can be told apart |
+| DELETE | `/me/playlists/:id/tracks` | `{ entryIds[] }` (≤ 500, removes exactly those rows), or the older `{ index }` (≥ 0) / `{ trackIds[] }`; positions are renumbered in one transaction |
+| PATCH | `/me/playlists/:id/tracks/order` | `{ from, to }` (whole numbers ≥ 0), or `{ entryId, to }`: `from` is then that row's current position (404 when it isn't in the playlist) |
+| GET / PUT | `/me/settings` | PUT `{ eqPreset?, gapless?, normalization?, stayOffline?, streamQuality?, downloadQuality?, downloadFormat? }`: only the fields sent change. Qualities are `low\|normal\|high` (`downloadQuality: 'lossless'` is stored as `high`), `downloadFormat` is `opus\|m4a`; any other value is 400 (it used to be ignored). Defaults: `eqPreset: 'Sonare'`, `gapless: true`, `normalization: true`, `stayOffline: false` |
+| GET / PUT | `/me/player-state` | PUT `{ trackRef?, positionMs?, queue?, index?, shuffle?, repeat? }`; `trackRef` is `{ kind: 'server', id }` or `{ kind: 'local', fingerprint }`, `repeat` is `off\|all\|one`. GET also returns `updatedAt` (epoch ms, 0 when nothing is saved), so a device keeps whichever queue is newer |
 | POST | `/me/sync` | `{ plays?: [{ trackRef, at, ms?, meta? }], favourites?: [{ trackRef, at?, meta? }] }` (≤ 1000 each); one bad entry rejects the whole request and nothing is recorded |
 
 **Metadata snapshots (`meta`).** The apps find songs, albums and artists on YouTube themselves
@@ -621,8 +629,8 @@ The `NowPlaying` waveform displays canonical 150 bars (clients can request 8–6
 | artist detail | 12 h |
 | `/streams` (metadata only) | 1 h |
 | stream URL | **do not cache past `expiresAt`** |
-| lyrics | permanent (with a manual refresh route) |
-| peaks | permanent (`peaks:v2:<rawId>`) |
+| lyrics | permanent: Postgres `lyrics_cache` (at most 50,000 rows; "none in this script" answers expire after a week), Redis for a week in front |
+| peaks | permanent: Postgres `waveforms` (one byte per bar), Redis `peaks:v3:<rawId>` for a week in front |
 
 Redis or `lru-cache` — either is fine at this stage. Cache *before* normalisation so a shape change doesn't invalidate everything.
 
