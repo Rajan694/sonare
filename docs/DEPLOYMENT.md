@@ -17,7 +17,7 @@ GitHub Releases ◄── tag vX.Y.Z ──┘ (apps' downloads and update check
 | Web `sonare-web`      | Render static site (CDN), free          | `render.yaml`                                |
 | Cache `sonare-cache`  | Render Key Value, free (memory only)    | `render.yaml`                                |
 | Database              | Neon project `sonare`, branch `production` | migrations run on every API start        |
-| Piped                 | this machine, Docker + Tailscale Funnel | `sonare-piped-backend/funnel.sh`             |
+| Piped                 | this machine, Docker + Tailscale Funnel | `sonare-piped-backend/funnel.sh` (`.ps1`)    |
 | App builds            | GitHub Releases of `Rajan694/sonare`    | `.github/workflows/release.yml`              |
 
 ## How a change reaches production
@@ -101,6 +101,10 @@ Piped has to be up for the web app and for the apps' fallback:
 ./update.sh prod                 # pull, start Piped, republish it with Funnel
 loginctl enable-linger "$USER"   # keep Tailscale running after you log out
 ```
+
+On Windows it's `.\update.ps1 prod` (Funnel through `funnel.ps1` and the Tailscale app). Every
+5 minutes a timer (a scheduled task on Windows) checks each Funnel relay address and restarts
+Tailscale if one stops answering; see `sonare-piped-backend/README.md`.
 
 `PIPED_API_URL` in `render.yaml` is `https://sonare-piped.tailb61775.ts.net`; change it there
 if the Funnel name ever changes.

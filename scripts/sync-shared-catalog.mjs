@@ -19,6 +19,7 @@ const FILES = [
   'catalog/normalize.ts',
   'catalog/pipedTypes.ts',
   'catalog/streams.ts',
+  'catalog/titleFixes.ts',
 ];
 
 const header = (file) =>
