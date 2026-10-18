@@ -2,8 +2,9 @@
 # branch (sonare-*\update*.ps1), installs what changed and is started.
 #
 #   dev   Piped, the backend and the web app for development (.\run.ps1 all)
-#   prod  this machine's part of production: Piped. The backend and the web app run on Render,
-#         which deploys from GitHub; --be also runs the backend here, compiled.
+#   prod  this machine's part of production: Piped, published through Tailscale Funnel when
+#         that is set up (sonare-piped-backend\funnel.ps1). The backend and the web app run
+#         on Render, which deploys from GitHub; --be also runs the backend here, compiled.
 
 $ScriptDir = $PSScriptRoot
 Push-Location $ScriptDir
@@ -13,7 +14,7 @@ function Show-Usage {
     Write-Host "Usage: .\update.ps1 [dev|prod] [--be]"
     Write-Host ""
     Write-Host "  dev (default)  Pull everything, then Piped, backend and web app (.\run.ps1 all)"
-    Write-Host "  prod           Pull everything, then Piped; the backend and web run on Render"
+    Write-Host "  prod           Pull everything, then Piped (+ Funnel); the backend and web run on Render"
     Write-Host "  --be           prod: also build and run the backend on this machine"
     Write-Host ""
     Write-Host "Each project refuses to pull over uncommitted changes."

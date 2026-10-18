@@ -3,6 +3,11 @@
 # every app and attaches them to a GitHub release. The submodule pointers in that commit say
 # which frontend gets built.
 #
+# The frontend's version files (desktop/neutralino.config.json, desktop/package.json and
+# Android's versionName/versionCode) must already say the version, so a local run, sonare.vip
+# and the release builds agree. When they don't, this writes them into sonare-frontend and
+# stops: commit them, merge, bump the pointer here, then run it again.
+#
 #   .\release.ps1            # bumps the patch of the latest tag: v1.1.0 -> v1.1.1
 #   .\release.ps1 1.2.0      # or v1.2.0
 #   .\release.ps1 -n 1.2.0   # dry run: checks and prints, tags nothing
@@ -53,6 +58,59 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "$Tag already exists - pick another version."
     exit 1
 }
+
+# ---- the frontend's version files ----
+
+$Fe = 'sonare-frontend'
+$NeuConfig = 'desktop/neutralino.config.json'
+$Gradle = 'mobile/android/app/build.gradle'
+
+# 1.2.3 -> 1002003, as .\sonare-frontend\buildFE.ps1 numbers Android's versionCode.
+$Major, $Minor, $Patch = $Version.Split('.')
+$Code = [int]$Major * 1000000 + [int]$Minor * 1000 + [int]$Patch
+
+$FeSha = git rev-parse "HEAD:$Fe"
+function Get-FeFile([string]$File) { (git -C $Fe show "${FeSha}:$File" 2>$null) -join "`n" }
+$DesktopAt = [regex]::Match((Get-FeFile $NeuConfig), '(?m)^  "version": "([^"]*)",').Groups[1].Value
+$GradleText = Get-FeFile $Gradle
+$AndroidAt = [regex]::Match($GradleText, '(?m)^\s*versionName "([^"]*)"').Groups[1].Value
+$CodeAt = [regex]::Match($GradleText, '(?m)^\s*versionCode ([0-9]+)').Groups[1].Value
+
+if ($DesktopAt -ne $Version -or $AndroidAt -ne $Version -or $CodeAt -ne "$Code") {
+    Write-Host "The frontend this commit records says desktop/web $DesktopAt, Android $AndroidAt ($CodeAt),"
+    Write-Host "not $Version ($Code)."
+    if ($Dry) {
+        Write-Host "Dry run - .\release.ps1 $Version would write $Version into $Fe's version files and stop."
+        exit 1
+    }
+    if (git -C $Fe status --porcelain --untracked-files=no) {
+        Write-Host "$Fe has uncommitted changes - commit or stash them, then run this again."
+        exit 1
+    }
+    # Only the first "version" (the package's own) in each JSON file; the lock file names it
+    # twice: at the top and under "packages"."".
+    $Utf8 = New-Object System.Text.UTF8Encoding($false)
+    function Set-FirstMatch([string]$File, [string]$Pattern, [string]$Replacement) {
+        $Full = Join-Path (Join-Path $PSScriptRoot $Fe) $File
+        $Text = [IO.File]::ReadAllText($Full)
+        $Text = ([regex]$Pattern).Replace($Text, $Replacement, 1)
+        [IO.File]::WriteAllText($Full, $Text, $Utf8)
+    }
+    foreach ($File in @($NeuConfig, 'desktop/package.json', 'desktop/package-lock.json')) {
+        Set-FirstMatch $File '(?m)^  "version": "[^"]*",' "  `"version`": `"$Version`","
+    }
+    Set-FirstMatch 'desktop/package-lock.json' '(?m)^      "version": "[^"]*",' "      `"version`": `"$Version`","
+    Set-FirstMatch $Gradle '(?m)^([ \t]*)versionName "[^"]*"' "`${1}versionName `"$Version`""
+    Set-FirstMatch $Gradle '(?m)^([ \t]*)versionCode [0-9]+' "`${1}versionCode $Code"
+    Write-Host ''
+    Write-Host "Wrote $Version into $Fe (on $(git -C $Fe branch --show-current)):"
+    git -C $Fe status --short --untracked-files=no
+    Write-Host ''
+    Write-Host "Next: commit them in $Fe, merge to main, point this repo's submodule at that commit,"
+    Write-Host "commit and push, then run .\release.ps1 $Version again."
+    exit 1
+}
+Write-Host "The frontend's version files say $Version."
 
 # The release builds what this commit records, so anything not committed would be left out,
 # and submodule commits that aren't on GitHub would fail the workflow's checkout.

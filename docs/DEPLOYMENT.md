@@ -17,7 +17,7 @@ GitHub Releases ◄── tag vX.Y.Z ──┘ (apps' downloads and update check
 | Web `sonare-web`      | Render static site (CDN), free          | `render.yaml`                                |
 | Cache `sonare-cache`  | Render Key Value, free (memory only)    | `render.yaml`                                |
 | Database              | Neon project `sonare`, branch `production` | migrations run on every API start        |
-| Piped                 | this machine, Docker + Tailscale Funnel | `sonare-piped-backend/funnel.sh`             |
+| Piped                 | this machine, Docker + Tailscale Funnel | `sonare-piped-backend/funnel.sh` (`.ps1`)    |
 | App builds            | GitHub Releases of `Rajan694/sonare`    | `.github/workflows/release.yml`              |
 
 ## How a change reaches production
@@ -102,6 +102,10 @@ Piped has to be up for the web app and for the apps' fallback:
 loginctl enable-linger "$USER"   # keep Tailscale running after you log out
 ```
 
+On Windows it's `.\update.ps1 prod` (Funnel through `funnel.ps1` and the Tailscale app). Every
+5 minutes a timer (a scheduled task on Windows) checks each Funnel relay address and restarts
+Tailscale if one stops answering; see `sonare-piped-backend/README.md`.
+
 `PIPED_API_URL` in `render.yaml` is `https://sonare-piped.tailb61775.ts.net`; change it there
 if the Funnel name ever changes.
 
@@ -120,22 +124,25 @@ Keep a copy of the keystore somewhere safe: every Android update must be signed 
 
 ## Releasing the apps
 
-1. Make sure the submodule pointers in this repo point at the frontend commit to release
-   (normally `main` after a merge), and push.
-2. Tag and push:
+1. Write the version into the frontend: `./release.sh 1.3.0` checks the version files
+   (`desktop/neutralino.config.json`, `desktop/package.json`, Android's `versionName` and
+   `versionCode`) in the frontend commit this repo points at. When they don't say 1.3.0 it writes
+   them into `sonare-frontend` and stops. Commit them there, merge to `main`, point this repo's
+   submodule at that commit and push.
+2. Optionally write the notes by hand in `docs/release-notes/v1.3.0.md` and commit it. Without
+   it, `scripts/release-notes.sh` makes them from the frontend's and backend's `feat`, `perf` and
+   `fix` commit subjects since the last tag. Run it first to see what they'd say.
+3. Run `./release.sh 1.3.0` again: the version files match, so it tags and pushes `v1.3.0`.
+4. The **Release** workflow checks the frontend says the tag's version, builds the APK, the
+   Linux AppImage / .deb / .tar.gz and the Windows .exe, and publishes the GitHub release with
+   them and the notes. The intro page's download buttons, the apps' update check and their
+   "What's new" pick it up within 10 minutes (the API caches the list).
 
-   ```bash
-   git tag v1.2.0
-   git push origin v1.2.0
-   ```
-
-3. The **Release** workflow builds the APK, the Linux AppImage / .deb / .tar.gz and the Windows
-   .exe at that version and publishes the GitHub release with them. The intro page's download
-   buttons and the apps' update check pick it up within 10 minutes (the API caches the list).
-
-Versions come from the tag and nothing is committed back. Android's `versionCode` follows from
-the version (1.2.0 → 1002000), so local `./build.sh` builds and CI builds of a version agree;
-always release a higher version than the last one.
+The version lives in the frontend's files, so a local run, sonare.vip (built by Render from the
+frontend's `main`) and the release builds all show the same one. Android's `versionCode` follows
+from the version (1.2.0 → 1002000); always release a higher version than the last one. Local
+runs (Vite, Metro, a dev APK) say "development build" in Settings → About and are never offered
+the release builds.
 
 ## Free-plan limits to keep in mind
 

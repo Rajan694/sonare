@@ -240,6 +240,10 @@ release needs the signing key in `~/.gradle/gradle.properties` (`SONARE_UPLOAD_*
   loginctl enable-linger "$USER"   # keep it running after you log out
   ```
 
+  On Windows, `.\funnel.ps1 install` installs the Tailscale app with winget and `.\funnel.ps1 up`
+  does the same as above. Moving Piped to another machine: see
+  `sonare-piped-backend/README.md` → "Moving Piped to another device".
+
   While Funnel is on, Piped's stream URLs point at the Funnel address. A backend on the same
   machine keeps `PIPED_API_URL=http://localhost:8090` and adds
   `PIPED_LOCAL_PROXY_URL=http://localhost:8091` to `sonare-backend/.env`, so development keeps
