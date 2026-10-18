@@ -44,9 +44,10 @@ services:
       - key: JWT_SECRET
         generateValue: true
       # The web app, its onrender.com address until the domain is live, and the desktop
-      # app's fixed Neutralino origin. The Android app sends no Origin.
+      # app's fixed Neutralino origin. Neutralino serves the window on 127.0.0.1, not
+      # localhost; the localhost form is kept as a fallback. The Android app sends no Origin.
       - key: CORS_ORIGINS
-        value: https://sonare.vip,https://sonare-web.onrender.com,http://localhost:47823
+        value: https://sonare.vip,https://sonare-web.onrender.com,http://127.0.0.1:47823,http://localhost:47823
       # Render's load balancer is the one proxy in front of the app.
       - key: TRUST_PROXY
         value: '1'
