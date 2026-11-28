@@ -60,7 +60,7 @@ Piped runs on a home connection because YouTube blocks datacenter IPs.
 
 ## Repository layout
 
-This root repo holds the scripts, the docs and the deployment config. The code lives in three
+This root repo holds the scripts, the docs and the deployment config. The code lives in four
 git submodules, each with its own README.
 
 | Folder                                                    | What it is                                                                              |
@@ -70,6 +70,7 @@ git submodules, each with its own README.
 | ↳ [`desktop/`](sonare-frontend/desktop/README.md)         | The desktop, web and admin app: React 19 + Vite + TypeScript in NeutralinoJS            |
 | ↳ [`mobile/`](sonare-frontend/mobile/README.md)           | The Android app: React Native, NativeWind, Zustand                                      |
 | [`sonare-piped-backend/`](sonare-piped-backend/README.md) | Sonare's fork of Piped (Java), run with Docker Compose                                  |
+| [`sonare-piped-host/`](sonare-piped-host/README.md)       | Hosts that Piped on Android phones instead: `sonare-hostd` (Go), Termux installer, app  |
 | `docs/`                                                   | Deployment and the TODO list                                                            |
 | `scripts/`                                                | `sync-shared-catalog.mjs`: copies `sonare-frontend/shared` into the backend (see below) |
 | `render.yaml`                                             | The Render Blueprint for the production API and web app                                 |
@@ -141,6 +142,7 @@ node scripts/sync-shared-catalog.mjs --check   # exit 1 if a copy is out of date
 | [sonare-frontend/mobile/README.md](sonare-frontend/mobile/README.md)   | The Android app: setup, layout, native modules                                      |
 | [sonare-piped-backend/README.md](sonare-piped-backend/README.md)       | Piped: settings, what to do when YouTube breaks something                           |
 | [sonare-piped-backend/HOSTING.md](sonare-piped-backend/HOSTING.md)     | Running Piped: up, down, update, Funnel for Render, moving devices, troubleshooting |
+| [sonare-piped-host/docs/HOSTING-PHONE.md](sonare-piped-host/docs/HOSTING-PHONE.md) | Hosting Piped on a phone instead: setup, moving between phones, Android traps |
 
 Each project's `TEST-PLAN.md` lists every test by ID. `npm test` refuses to run if the tests and
 the plan disagree.

@@ -12,10 +12,12 @@ it. Linux commands are for Ubuntu / Debian; Windows commands are for PowerShell 
 | Sonare API              | `sonare-backend/`       | Node 22 + Postgres + Redis | 3010                          |
 | Web app, desktop window | `sonare-frontend/desktop` | Node 22 (Vite, NeutralinoJS) | 5183 web, 5184 window     |
 | Android app             | `sonare-frontend/mobile`  | Node 22 + JDK 17 + Android SDK | Metro 8081              |
+| Piped on a phone (optional) | `sonare-piped-host/` | An Android phone in Termux | its own Funnel address |
 
 You only need the Android tools for the Android app, and the release tools only to make
 installable builds. In production the API and the web app run on Render and Piped runs at
-home behind Tailscale Funnel (see [Production](#8-production)).
+home behind Tailscale Funnel (see [Production](#8-production)), on this machine or on a spare
+phone ([sonare-piped-host/docs/HOSTING-PHONE.md](sonare-piped-host/docs/HOSTING-PHONE.md)).
 
 ## 1. Install the software
 

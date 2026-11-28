@@ -10,3 +10,7 @@
 	path = sonare-piped-backend
 	url = https://github.com/Rajan694/sonare-piped-backend.git
 	branch = main
+[submodule "sonare-piped-host"]
+	path = sonare-piped-host
+	url = https://github.com/Rajan694/sonare-piped-host.git
+	branch = main

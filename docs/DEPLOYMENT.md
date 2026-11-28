@@ -18,6 +18,7 @@ GitHub Releases ◄── tag vX.Y.Z ──┘ (apps' downloads and update check
 | Cache `sonare-cache`  | Render Key Value, free (memory only)    | `render.yaml`                                |
 | Database              | Neon project `sonare`, branch `production` | migrations run on every API start        |
 | Piped                 | this machine, Docker + Tailscale Funnel | `sonare-piped-backend/funnel.sh` (`.ps1`)    |
+| Piped on phones       | Android phones in Termux, each with its own Funnel address | `sonare-piped-host` (see 6b) |
 | App builds            | GitHub Releases of `Rajan694/sonare`    | `.github/workflows/release.yml`              |
 
 ## How a change reaches production
@@ -108,6 +109,27 @@ Tailscale if one stops answering; see `sonare-piped-backend/README.md`.
 
 `PIPED_API_URL` in `render.yaml` is `https://sonare-piped.tailb61775.ts.net`; change it there
 if the Funnel name ever changes.
+
+### 6b. Piped on a phone
+
+Phones can host Piped instead of this machine, from any network, with no root:
+[`sonare-piped-host`](../sonare-piped-host/docs/HOSTING-PHONE.md).
+
+- **Each phone has its own Funnel address**, `https://sonare-host-<name>.tailb61775.ts.net`.
+- **Phones tell the backend about themselves.** They send signed `register`, `claim` and
+  `release` requests to `/api/v1/piped-hosts/*`, signed with the same `PIPED_KEY`. They send
+  them only when their state changes, so the free instance can still sleep.
+- **How the backend picks a host:**
+  1. the active phone;
+  2. healthy standby phones, unmetered first, then by priority;
+  3. `PIPED_API_URL`, this machine, as the last fallback.
+
+  A URL saved on the admin page overrides all of this, so leave it empty.
+- **Moving to another phone:** press Connect on the new one. It claims, and the old one is
+  released.
+- **Nothing in `render.yaml` changes.** The backend checks each phone's `/healthcheck` every
+  60 s while it's awake. `/api/v1/healthz` names the current host (`pipedHost`), and the admin
+  API lists them at `/api/v1/admin/piped-hosts`.
 
 ### 7. Release signing secrets
 
